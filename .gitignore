@@ -1,0 +1,12 @@
+
+# exclude tmp build dir
+_build/
+
+# exclude build result dir
+_dst/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
