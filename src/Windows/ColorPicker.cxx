@@ -24,6 +24,41 @@ void CALLBACK FlushTimerCallback(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD d
 uint32_t EXCLUDE_WINDOW_COUNT = 0;
 HWND EXCLUDE_WINDOW_LIST[16] = {0};
 
+
+int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
+{
+   using namespace Gdiplus;
+
+   UINT  num = 0;          // number of image encoders
+   UINT  size = 0;         // size of the image encoder array in bytes
+
+   ImageCodecInfo* pImageCodecInfo = NULL;
+
+   GetImageEncodersSize(&num, &size);
+   if(size == 0)
+      return -1;  // Failure
+
+   pImageCodecInfo = (ImageCodecInfo*)(malloc(size));
+   if(pImageCodecInfo == NULL)
+      return -1;  // Failure
+
+   GetImageEncoders(num, size, pImageCodecInfo);
+
+   for(UINT j = 0; j < num; ++j)
+   {
+      if( wcscmp(pImageCodecInfo[j].MimeType, format) == 0 )
+      {
+         *pClsid = pImageCodecInfo[j].Clsid;
+         free(pImageCodecInfo);
+         return j;  // Success
+      }
+   }
+
+   free(pImageCodecInfo);
+   return -1;  // Failure
+}
+
+
 BOOL WINAPI MagnifierWndCallback(HWND hWnd, \
                                  void* srcdata, MAGIMAGEHEADER srcheader, \
                                  void* destdata, MAGIMAGEHEADER destheader, \
@@ -32,9 +67,18 @@ BOOL WINAPI MagnifierWndCallback(HWND hWnd, \
 int main(int argc, char* argv[])
 {
     class GDI_PLUS_INITIALIZER GDI_PLUS_INITIALIZER;
+    class MONITOR_INFO_INITIALIZER MONITOR_INFO_INITIALIZER;
     class MAGNIFICATION_INITIALIZER MAGNIFICATION_INITIALIZER;
 
     auto hInstance = ::GetModuleHandle(nullptr);
+
+    for (int idx = 0; idx < ALL_MONITOR_RECT_INFO_COUNT; ++idx)
+    {
+        auto rect = ALL_MONITOR_RECT_INFO[idx];
+        auto size = ALL_MONITOR_SIZE_INFO[idx];
+        printf("%d %d %d %d\n", rect.top, rect.left, rect.right, rect.bottom);
+        printf("%d %d \n", size.cx, size.cy);
+    }
 
     struct WND_CLASS_INITIALIZER
     {
@@ -203,45 +247,43 @@ int main(int argc, char* argv[])
     } BITMAP_MASK_INITIALIZER(hInstance);
 
     //*************************************************************************//
-    LPDIRECT3D9 pD3D = NULL;
-    if( NULL == (pD3D = Direct3DCreate9(D3D_SDK_VERSION)) ) {
-        printf("Direct3DCreate9 Failed\n");
+
+    CLSID pngClsid;
+    GetEncoderClsid(L"image/bmp", &pngClsid);
+
+    auto hDesktopWnd = ::GetDesktopWindow();
+    auto hDesktopDC = ::GetDC(hDesktopWnd);
+    auto hCaptureDC = ::CreateCompatibleDC(hDesktopDC);
+
+    for (int idx = 0; idx < ALL_MONITOR_RECT_INFO_COUNT; ++idx)
+    {
+        int display_width = ALL_MONITOR_SIZE_INFO[idx].cx;
+        int display_height = ALL_MONITOR_SIZE_INFO[idx].cy;
+
+        int display_top = ALL_MONITOR_RECT_INFO[idx].top;
+        int display_left = ALL_MONITOR_RECT_INFO[idx].left;
+
+        auto hCaptureBitmap = ::CreateCompatibleBitmap(hDesktopDC, \
+                                        display_width, display_height);
+
+        ::SelectObject(hCaptureDC, hCaptureBitmap);
+
+        ::BitBlt(hCaptureDC,
+                 0, 0, display_width, display_height,
+                 hDesktopDC,
+                 display_left, display_top,
+                 SRCCOPY|CAPTUREBLT);
+
+        auto bitmap = Gdiplus::Bitmap::FromHBITMAP(hCaptureBitmap, nullptr);
+        bitmap->Save(L"Test.bmp", &pngClsid, NULL);
+        delete bitmap;
+
+        ::DeleteObject(hCaptureBitmap);
     }
 
-    D3DDISPLAYMODE ddm;
-    if( D3D_OK != pD3D->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &ddm) ) {
-        printf("pD3D->GetAdapterDisplayMode Failed\n");
-    }
-    printf("%d %d\n", ddm.Width, ddm.Height);
-
-    // D3DPRESENT_PARAMETERS d3dpp;
-    // ZeroMemory(&d3dpp, sizeof(d3dpp));
-
-    // d3dpp.Windowed = TRUE;
-    // d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    // d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
-
-    // // d3dpp.Windowed = TRUE; // Full??
-    // // d3dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
-    // // d3dpp.BackBufferFormat=ddm.Format;
-    // // d3dpp.BackBufferHeight=nDisplayHeight=gScreenRect.bottom =ddm.Height;
-    // // d3dpp.BackBufferWidth=nDisplayWidth=gScreenRect.right =ddm.Width;
-    // // d3dpp.MultiSampleType=D3DMULTISAMPLE_NONE;
-    // // d3dpp.SwapEffect=D3DSWAPEFFECT_DISCARD;
-    // // d3dpp.hDeviceWindow=hWnd;
-    // // d3dpp.PresentationInterval=D3DPRESENT_INTERVAL_DEFAULT;
-    // // d3dpp.FullScreen_RefreshRateInHz=D3DPRESENT_RATE_DEFAULT;
-
-    // LPDIRECT3DDEVICE9 pd3dDevice = NULL;
-
-    // if( D3D_OK != pD3D->CreateDevice( D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, \
-    //                                   HWND_UI,
-    //                                   D3DCREATE_HARDWARE_VERTEXPROCESSING,
-    //                                   &d3dpp, &pd3dDevice ) )
-    // {
-    //     printf("pD3D->CreateDevice Failed\n");
-    // }
-
+    ::DeleteDC(hCaptureDC);
+    ::DeleteDC(hDesktopDC);
+    ::ReleaseDC(hDesktopWnd, hDesktopDC);
 
 
     //*************************************************************************//

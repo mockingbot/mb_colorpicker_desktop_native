@@ -17,7 +17,6 @@
 #include <wincodec.h>
 #include <magnification.h>
 
-#include <D3D9.h>
 
 /*
         /+/       <---------------------------
@@ -67,24 +66,6 @@ public:
     }
 };
 
-struct DIRECT3D_9_INITIALIZER
-{
-private:
-    LPDIRECT3D9 pD3D = nullptr;
-public:
-    DIRECT3D_9_INITIALIZER()
-    :pD3D(::Direct3DCreate9(D3D_SDK_VERSION))
-    {
-        if( pD3D == nullptr ){
-            printf("Direct3DCreate9 Failed %d\n", ::GetLastError());
-            throw std::runtime_error("::Direct3DCreate9 Failed");
-        }
-    }
-    ~DIRECT3D_9_INITIALIZER()
-    {
-        pD3D->Release();
-    }
-};
 
 struct MAGNIFICATION_INITIALIZER
 {
@@ -101,6 +82,39 @@ public:
         if( FALSE == ::MagUninitialize() ){
             printf("MagUninitialize Failed %d\n", ::GetLastError());
         }
+    }
+};
+
+
+int ALL_MONITOR_RECT_INFO_COUNT = 0;
+RECT ALL_MONITOR_RECT_INFO[32] = {0};
+SIZE ALL_MONITOR_SIZE_INFO[32] = {0};
+
+struct MONITOR_INFO_INITIALIZER
+{
+private:
+    static BOOL CALLBACK EnumProc(HMONITOR hMonitor,
+                                  HDC      hdcMonitor,
+                                  LPRECT   lprcMonitor,
+                                  LPARAM   dwData)
+    {
+        SIZE size = {0, 0};
+        size.cx = lprcMonitor->right - lprcMonitor->left,
+        size.cy = lprcMonitor->bottom - lprcMonitor->top,
+
+        ALL_MONITOR_RECT_INFO[ALL_MONITOR_RECT_INFO_COUNT] = *lprcMonitor;
+        ALL_MONITOR_SIZE_INFO[ALL_MONITOR_RECT_INFO_COUNT] = size;
+        ALL_MONITOR_RECT_INFO_COUNT++;
+
+        return TRUE;
+    }
+public:
+    MONITOR_INFO_INITIALIZER()
+    {
+        ::EnumDisplayMonitors(NULL, NULL, EnumProc, 0);
+    }
+    ~MONITOR_INFO_INITIALIZER()
+    {
     }
 };
 

@@ -6,7 +6,7 @@ set PRJ_DIR=%cd%
 set RC_FLAG=/nologo /i%PRJ_DIR%\res
 set CL_FLAG=/nologo /DRELEASE /DUNICODE /MT /EHsc /Ox /c
 set LINK_FLAG=/NOLOGO user32.lib gdi32.lib ole32.lib
-set LINK_LIBS=gdiplus.lib d3d9.lib magnification.lib
+set LINK_LIBS=gdiplus.lib magnification.lib
 
 set SRC_DIR=%PRJ_DIR%\src\Windows
 set DST_DIR=%PRJ_DIR%\_dst\Windows
