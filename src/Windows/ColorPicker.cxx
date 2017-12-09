@@ -17,52 +17,20 @@ Gdiplus::Bitmap* BITMAP_MASK_CIRCLE;
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 const UINT UPDATE_TIMER_INTERVAL = 16; // close to the refresh rate @60hz
-void CALLBACK FlushTimerCallback(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
-
 
 // the magnification api can only exclude some window, 16 is enough for us
 uint32_t EXCLUDE_WINDOW_COUNT = 0;
 HWND EXCLUDE_WINDOW_LIST[16] = {0};
 
+//
+// HBITMAP ALL_MONITOR_CAPTURED_BITMAP[32] = {NULL};
+Gdiplus::Bitmap* ALL_MONITOR_CAPTURED_BITMAP[32] = {NULL};
 
-int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
-{
-   using namespace Gdiplus;
+BOOL WINAPI MagnifierUpdateCallback(HWND hWnd, \
+                                    void* srcdata, MAGIMAGEHEADER srcheader, \
+                                    void* destdata, MAGIMAGEHEADER destheader, \
+                                    RECT unclipped, RECT clipped, HRGN dirty);
 
-   UINT  num = 0;          // number of image encoders
-   UINT  size = 0;         // size of the image encoder array in bytes
-
-   ImageCodecInfo* pImageCodecInfo = NULL;
-
-   GetImageEncodersSize(&num, &size);
-   if(size == 0)
-      return -1;  // Failure
-
-   pImageCodecInfo = (ImageCodecInfo*)(malloc(size));
-   if(pImageCodecInfo == NULL)
-      return -1;  // Failure
-
-   GetImageEncoders(num, size, pImageCodecInfo);
-
-   for(UINT j = 0; j < num; ++j)
-   {
-      if( wcscmp(pImageCodecInfo[j].MimeType, format) == 0 )
-      {
-         *pClsid = pImageCodecInfo[j].Clsid;
-         free(pImageCodecInfo);
-         return j;  // Success
-      }
-   }
-
-   free(pImageCodecInfo);
-   return -1;  // Failure
-}
-
-
-BOOL WINAPI MagnifierWndCallback(HWND hWnd, \
-                                 void* srcdata, MAGIMAGEHEADER srcheader, \
-                                 void* destdata, MAGIMAGEHEADER destheader, \
-                                 RECT unclipped, RECT clipped, HRGN dirty);
 
 int main(int argc, char* argv[])
 {
@@ -71,14 +39,6 @@ int main(int argc, char* argv[])
     class MAGNIFICATION_INITIALIZER MAGNIFICATION_INITIALIZER;
 
     auto hInstance = ::GetModuleHandle(nullptr);
-
-    for (int idx = 0; idx < ALL_MONITOR_RECT_INFO_COUNT; ++idx)
-    {
-        auto rect = ALL_MONITOR_RECT_INFO[idx];
-        auto size = ALL_MONITOR_SIZE_INFO[idx];
-        printf("%d %d %d %d\n", rect.top, rect.left, rect.right, rect.bottom);
-        printf("%d %d \n", size.cx, size.cy);
-    }
 
     struct WND_CLASS_INITIALIZER
     {
@@ -207,15 +167,15 @@ int main(int argc, char* argv[])
     private:
         UINT_PTR timer_id;
     public:
-        FLUSH_TIMER(HWND hWnd, TIMERPROC lpTimerFunc)
-        :timer_id(::SetTimer(hWnd, 0, UPDATE_TIMER_INTERVAL, lpTimerFunc))
+        FLUSH_TIMER(HWND hWnd)
+        :timer_id(::SetTimer(hWnd, 0, UPDATE_TIMER_INTERVAL, nullptr))
         {
         }
         ~FLUSH_TIMER()
         {
            ::KillTimer(NULL, timer_id);
         }
-    } FLUSH_TIMER(HWND_UI, FlushTimerCallback);
+    } FLUSH_TIMER(HWND_UI);
 
     //*************************************************************************//
     struct HDC_INITIALIZER
@@ -247,46 +207,6 @@ int main(int argc, char* argv[])
     } BITMAP_MASK_INITIALIZER(hInstance);
 
     //*************************************************************************//
-
-    CLSID pngClsid;
-    GetEncoderClsid(L"image/bmp", &pngClsid);
-
-    auto hDesktopWnd = ::GetDesktopWindow();
-    auto hDesktopDC = ::GetDC(hDesktopWnd);
-    auto hCaptureDC = ::CreateCompatibleDC(hDesktopDC);
-
-    for (int idx = 0; idx < ALL_MONITOR_RECT_INFO_COUNT; ++idx)
-    {
-        int display_width = ALL_MONITOR_SIZE_INFO[idx].cx;
-        int display_height = ALL_MONITOR_SIZE_INFO[idx].cy;
-
-        int display_top = ALL_MONITOR_RECT_INFO[idx].top;
-        int display_left = ALL_MONITOR_RECT_INFO[idx].left;
-
-        auto hCaptureBitmap = ::CreateCompatibleBitmap(hDesktopDC, \
-                                        display_width, display_height);
-
-        ::SelectObject(hCaptureDC, hCaptureBitmap);
-
-        ::BitBlt(hCaptureDC,
-                 0, 0, display_width, display_height,
-                 hDesktopDC,
-                 display_left, display_top,
-                 SRCCOPY|CAPTUREBLT);
-
-        auto bitmap = Gdiplus::Bitmap::FromHBITMAP(hCaptureBitmap, nullptr);
-        bitmap->Save(L"Test.bmp", &pngClsid, NULL);
-        delete bitmap;
-
-        ::DeleteObject(hCaptureBitmap);
-    }
-
-    ::DeleteDC(hCaptureDC);
-    ::DeleteDC(hDesktopDC);
-    ::ReleaseDC(hDesktopWnd, hDesktopDC);
-
-
-    //*************************************************************************//
     EXCLUDE_WINDOW_LIST[EXCLUDE_WINDOW_COUNT] = HWND_UI;
     EXCLUDE_WINDOW_COUNT++;
 
@@ -294,7 +214,8 @@ int main(int argc, char* argv[])
     // EXCLUDE_WINDOW_COUNT++;
 
     //*************************************************************************//
-    if( FALSE == ::MagSetImageScalingCallback(HWND_MAGNIFIER, MagnifierWndCallback) )
+    if( FALSE == ::MagSetImageScalingCallback(HWND_MAGNIFIER, \
+                                                MagnifierUpdateCallback) )
     {
         printf("MagSetImageScalingCallback %d\n", ::GetLastError());
         throw std::runtime_error("::MagSetImageScalingCallback Failed");
@@ -314,24 +235,17 @@ int main(int argc, char* argv[])
     return (int) msg.wParam;
 }
 
-LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch (message)
-    {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-    break;
-    case WM_LBUTTONDOWN:
-        PostQuitMessage(0);
-    break;
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
-    }
-    return 0;
-}
 
-void CALLBACK FlushTimerCallback(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
+/*******************************************************************************/
+
+extern void SnapshotBasedRefreshCallback();
+extern void MagnifierBasedRefreshCallback();
+extern std::function<void(void)> TheRefreshCallback;
+
+void MagnifierBasedRefreshCallback()
 {
+    // printf("%s\n", __FUNCTION__);
+
     if( FALSE == ::MagSetWindowFilterList(HWND_MAGNIFIER,
                                           MW_FILTERMODE_EXCLUDE,
                                           EXCLUDE_WINDOW_COUNT,
@@ -341,12 +255,12 @@ void CALLBACK FlushTimerCallback(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD d
         throw std::runtime_error("::MagSetWindowFilterList Failed");
     }
 
-    POINT mousePoint;
-    ::GetCursorPos(&mousePoint);
+    POINT mousePos;
+    ::GetCursorPos(&mousePos);
 
     RECT sourceRect;
-    sourceRect.left   = mousePoint.x - CAPTURE_WIDTH / 2;
-    sourceRect.top    = mousePoint.y - CAPTURE_HEIGHT / 2;
+    sourceRect.left   = mousePos.x - CAPTURE_WIDTH / 2;
+    sourceRect.top    = mousePos.y - CAPTURE_HEIGHT / 2;
     sourceRect.right  = CAPTURE_WIDTH;
     sourceRect.bottom = CAPTURE_HEIGHT;
 
@@ -359,94 +273,140 @@ void CALLBACK FlushTimerCallback(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD d
 
     // Force redraw.
     ::InvalidateRect(HWND_MAGNIFIER, NULL, TRUE);
-    // ::InvalidateRect(HWND_UI, NULL, TRUE);
 }
 
-BOOL WINAPI MagnifierWndCallback(HWND hWnd, \
-                                 void* srcdata, MAGIMAGEHEADER srcheader, \
-                                 void* destdata, MAGIMAGEHEADER destheader, \
-                                 RECT unclipped, RECT clipped, HRGN dirty)
+BOOL WINAPI MagnifierUpdateCallback(HWND hWnd, \
+                                    void* srcdata, MAGIMAGEHEADER srcheader, \
+                                    void* destdata, MAGIMAGEHEADER destheader, \
+                                    RECT unclipped, RECT clipped, HRGN dirty)
 {
-    auto const src_buffer = (BYTE*)srcdata;
-    // return TRUE;
+    // printf("%s\n", __FUNCTION__);
 
-    static bool initd = [&srcheader](){
+    auto capture_all_screen_bitmap = []()
+    {
+        auto hDesktopWnd = ::GetDesktopWindow();
+        auto hDesktopDC  = ::GetDC(hDesktopWnd);
+        auto hCaptureDC  = ::CreateCompatibleDC(hDesktopDC);
+        auto hBrushBlack = ::CreateSolidBrush(RGB(0, 0, 0));
+
+        for (int idx = 0; idx < ALL_MONITOR_INFO_COUNT; ++idx)
+        {
+            const int display_width = ALL_MONITOR_SIZE_INFO[idx].cx;
+            const int display_height = ALL_MONITOR_SIZE_INFO[idx].cy;
+
+            const int display_top = ALL_MONITOR_RECT_INFO[idx].top;
+            const int display_left = ALL_MONITOR_RECT_INFO[idx].left;
+
+            auto hCaptureBitmap = ::CreateCompatibleBitmap(hDesktopDC, \
+                                            display_width + GRID_NUMUBER_L*2,
+                                            display_height + GRID_NUMUBER_L*2);
+
+            ::SelectObject(hCaptureDC, hCaptureBitmap);
+
+            const auto size = ALL_MONITOR_SIZE_INFO[idx];
+            const auto rect = RECT{ 0, 0, size.cx, size.cy};
+
+            ::FillRect(hCaptureDC, &rect, hBrushBlack);
+
+            ::BitBlt(hCaptureDC,
+                     GRID_NUMUBER_L, GRID_NUMUBER_L,
+                     display_width, display_height,
+                     hDesktopDC,
+                     display_left, display_top,
+                     SRCCOPY|CAPTUREBLT);
+
+            ALL_MONITOR_CAPTURED_BITMAP[idx] = \
+                Gdiplus::Bitmap::FromHBITMAP(hCaptureBitmap, nullptr);
+        }
+
+        ::DeleteObject(hBrushBlack);
+        ::DeleteDC(hCaptureDC);
+        ::DeleteDC(hDesktopDC);
+        ::ReleaseDC(hDesktopWnd, hDesktopDC);
+    };
+
+    static bool initd = [&srcheader, &capture_all_screen_bitmap](){
         /*  */ if(srcheader.format == GUID_WICPixelFormat32bppRGBA ) {
-            std::cout << "GUID_WICPixelFormat32bppRGBA\n";
+            printf("GUID_WICPixelFormat32bppRGBA\n");
+            TheRefreshCallback = MagnifierBasedRefreshCallback;
         } else if(srcheader.format == GUID_WICPixelFormat32bppBGR ){
-            std::cout << "GUID_WICPixelFormat32bppBGR\n";
+            printf("GUID_WICPixelFormat32bppBGR\n");
+            capture_all_screen_bitmap();
+            TheRefreshCallback = SnapshotBasedRefreshCallback;
         } else {
-            std::cout << "GUID_WICPixelFormat Unkwown\n";
+            printf("GUID_WICPixelFormat Unkwown\n");
+            capture_all_screen_bitmap();
+            TheRefreshCallback = SnapshotBasedRefreshCallback;
         }
         return true;
     }();
+
+
+    /**************************************************************************/
+    // Paint Zoomed Image
+    const auto src_buffer = (BYTE*)srcdata;
 
     Gdiplus::Graphics graphics(HDC_FOR_UI_WND_CANVASE);
     Gdiplus::Bitmap bitmap(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, &graphics);
 
     Gdiplus::Graphics painter(&bitmap);
 
+    // Paint zoomed capture image inside cliped circle
     auto graphics_state = painter.Save();
     {
+        // clip the circle
         Gdiplus::GraphicsPath path(Gdiplus::FillMode::FillModeWinding);
         path.AddEllipse(4, 4, 163, 163);
-
         Gdiplus::Region region(&path);
         painter.SetClip(&region, Gdiplus::CombineMode::CombineModeReplace);
-    }
 
-    for(int y = 0; y < GRID_NUMUBER; ++y)
-    {
-        for(int x = 0; x < GRID_NUMUBER; ++x)
+        // draw zoomed image
+        Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.25, 0xCF, 0xCF, 0xCF), 1);
+        // Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.05, 0x4F, 0x4F, 0x4F), 1);
+        for(int idx_y = 0; idx_y < GRID_NUMUBER; ++idx_y)
         {
-            int dst_x_l = 1 + (GRID_PIXEL + 1)*x;
-            int dst_y_t = 1 + (GRID_PIXEL + 1)*y;
+            for(int idx_x = 0; idx_x < GRID_NUMUBER; ++idx_x)
+            {
+                int x = 1 + (GRID_PIXEL + 1)*idx_x;
+                int y = 1 + (GRID_PIXEL + 1)*idx_y;
 
-            const auto src_pixel = &src_buffer[y*GRID_NUMUBER*4 + x*4];
-            const auto r = src_pixel[2];
-            const auto g = src_pixel[1];
-            const auto b = src_pixel[0];
-            // const auto a = src_pixel[3];
+                const auto src_pixel = &src_buffer[idx_y*GRID_NUMUBER*4 + idx_x*4];
+                const auto r = src_pixel[2];
+                const auto g = src_pixel[1];
+                const auto b = src_pixel[0];
+                // const auto a = src_pixel[3];
 
-            Gdiplus::SolidBrush brush(Gdiplus::Color(0xFF, r, g, b));
-            painter.FillRectangle(&brush, dst_x_l, dst_y_t, GRID_PIXEL+1, GRID_PIXEL+1);
-
-            // Gdiplus::Pen l_pen(Gdiplus::Color(0xFF*0.05, 0x4F, 0x4F, 0x4F), 1);
-            Gdiplus::Pen h_pen(Gdiplus::Color(0xFF*0.25, 0xCF, 0xCF, 0xCF), 1);
-
-            // painter.DrawRectangle(&l_pen, dst_x_l, dst_y_t, GRID_PIXEL+1, GRID_PIXEL+1);
-            painter.DrawRectangle(&h_pen, dst_x_l, dst_y_t, GRID_PIXEL+1, GRID_PIXEL+1);
+                Gdiplus::SolidBrush brush(Gdiplus::Color(0xFF, r, g, b));
+                painter.FillRectangle(&brush, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+                painter.DrawRectangle(&grid_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+            }
         }
-    }
-    {
-        int dst_x_l = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
-        int dst_y_t = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
+        // draw center grid
+        int x = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
+        int y = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
 
         Gdiplus::Pen black_pen(Gdiplus::Color(0xFF, 0x00, 0x00, 0x00), 1);
         Gdiplus::Pen white_pen(Gdiplus::Color(0xFF, 0xFF, 0xFF, 0xFF), 1);
 
-        painter.DrawRectangle(&black_pen, dst_x_l, dst_y_t, GRID_PIXEL+1, GRID_PIXEL+1);
-        painter.DrawRectangle(&white_pen, dst_x_l+1, dst_y_t+1, GRID_PIXEL-1, GRID_PIXEL-1);
+        painter.DrawRectangle(&black_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+        painter.DrawRectangle(&white_pen, x+1, y+1, GRID_PIXEL-1, GRID_PIXEL-1);
     }
     painter.Restore(graphics_state);
 
+    // mask circle
     painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0);
 
     /**************************************************************************/
     HBITMAP hBitmap;
-    if( bitmap.GetHBITMAP(Gdiplus::Color(), &hBitmap) != Gdiplus::Status::Ok)
-    {
-        printf("-----------------\n");
-        return TRUE;
-    }
+    bitmap.GetHBITMAP(Gdiplus::Color(), &hBitmap);
 
     auto hPrevObj = ::SelectObject(HDC_FOR_UI_WND_CANVASE, hBitmap);
 
-    POINT mousePoint;
-    ::GetCursorPos(&mousePoint);
+    POINT mousePos;
+    ::GetCursorPos(&mousePos);
 
     // POINT ptDest = {800, 400};
-    POINT ptDest = { mousePoint.x - UI_WINDOW_WIDTH/2, mousePoint.y - UI_WINDOW_HEIGHT/2};
+    POINT ptDest = { mousePos.x - UI_WINDOW_WIDTH/2, mousePos.y - UI_WINDOW_HEIGHT/2};
 
     POINT ptSrc = {0, 0};
     SIZE client = {UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT};
@@ -468,4 +428,153 @@ BOOL WINAPI MagnifierWndCallback(HWND hWnd, \
     ::DeleteObject(hBitmap);
 
     return TRUE;
+}
+
+void SnapshotBasedRefreshCallback()
+{
+    // printf("%s\n", __FUNCTION__);
+
+    POINT mousePos;
+    ::GetCursorPos(&mousePos);
+
+    int mousePosX, mousePosY;
+    Gdiplus::Bitmap* current_capture_bitmap;
+    for (int idx = 0; idx < ALL_MONITOR_INFO_COUNT; ++idx)
+    {
+        if( PtInRect(&ALL_MONITOR_RECT_INFO[idx], mousePos) )
+        {
+            current_capture_bitmap = ALL_MONITOR_CAPTURED_BITMAP[idx];
+            const auto rect = ALL_MONITOR_RECT_INFO[idx];
+            mousePosX = mousePos.x - rect.left;
+            mousePosY = mousePos.y - rect.top;
+            break;
+        }
+    }
+
+    // Reclaim topmost status
+    ::SetWindowPos(HWND_UI, HWND_TOPMOST, 0, 0, 0, 0, \
+                    SWP_NOACTIVATE|SWP_NOMOVE|SWP_NOSIZE);
+
+    /**************************************************************************/
+
+    Gdiplus::Graphics graphics(HDC_FOR_UI_WND_CANVASE);
+    Gdiplus::Bitmap bitmap(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, &graphics);
+
+    Gdiplus::Graphics painter(&bitmap);
+
+    // Paint zoomed capture image inside cliped circle
+    auto graphics_state = painter.Save();
+    {
+        // clip the circle
+        Gdiplus::GraphicsPath path(Gdiplus::FillMode::FillModeWinding);
+        path.AddEllipse(4, 4, 163, 163);
+        Gdiplus::Region region(&path);
+        painter.SetClip(&region, Gdiplus::CombineMode::CombineModeReplace);
+
+        // draw zoomed image
+        Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.25, 0xCF, 0xCF, 0xCF), 1);
+        // Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.05, 0x4F, 0x4F, 0x4F), 1);
+        for(int idx_y = 0; idx_y < GRID_NUMUBER; ++idx_y)
+        {
+            for(int idx_x = 0; idx_x < GRID_NUMUBER; ++idx_x)
+            {
+                int x = 1 + (GRID_PIXEL + 1)*idx_x;
+                int y = 1 + (GRID_PIXEL + 1)*idx_y;
+
+                int p_x = mousePosX + idx_x;
+                int p_y = mousePosY + idx_y;
+
+                Gdiplus::Color color;
+                current_capture_bitmap->GetPixel(p_x, p_y, &color);
+
+                Gdiplus::SolidBrush brush(color);
+                painter.FillRectangle(&brush, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+                painter.DrawRectangle(&grid_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+            }
+        }
+
+        // draw center grid
+        int x = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
+        int y = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
+
+        Gdiplus::Pen black_pen(Gdiplus::Color(0xFF, 0x00, 0x00, 0x00), 1);
+        Gdiplus::Pen white_pen(Gdiplus::Color(0xFF, 0xFF, 0xFF, 0xFF), 1);
+
+        painter.DrawRectangle(&black_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+        painter.DrawRectangle(&white_pen, x+1, y+1, GRID_PIXEL-1, GRID_PIXEL-1);
+    }
+    painter.Restore(graphics_state);
+
+    // mask circle
+    painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0);
+
+    /**************************************************************************/
+    HBITMAP hBitmap;
+    bitmap.GetHBITMAP(Gdiplus::Color(), &hBitmap);
+
+    auto hPrevObj = ::SelectObject(HDC_FOR_UI_WND_CANVASE, hBitmap);
+
+
+    // POINT ptDest = {800, 400};
+    POINT ptDest = { mousePos.x - UI_WINDOW_WIDTH/2, mousePos.y - UI_WINDOW_HEIGHT/2};
+
+    POINT ptSrc = {0, 0};
+    SIZE client = {UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT};
+    BLENDFUNCTION blend_func = {AC_SRC_OVER, 0, 0xFF, AC_SRC_ALPHA};
+
+    ::UpdateLayeredWindow(\
+                        HWND_UI,
+                        HDC_FOR_UI_WND,
+                        &ptDest,
+                        &client,
+                        HDC_FOR_UI_WND_CANVASE,
+                        &ptSrc,
+                        0,
+                        &blend_func,
+                        ULW_ALPHA
+                        );
+
+    ::SelectObject(HDC_FOR_UI_WND_CANVASE, hPrevObj);
+    ::DeleteObject(hBitmap);
+    //
+}
+
+
+void CheckWhichModeShouldRun()
+{
+    POINT mousePos;
+    ::GetCursorPos(&mousePos);
+
+    RECT sourceRect;
+    sourceRect.left   = mousePos.x - CAPTURE_WIDTH / 2;
+    sourceRect.top    = mousePos.y - CAPTURE_HEIGHT / 2;
+    sourceRect.right  = CAPTURE_WIDTH;
+    sourceRect.bottom = CAPTURE_HEIGHT;
+
+    // Set the source rectangle for the magnifier control.
+    ::MagSetWindowSource(HWND_MAGNIFIER, sourceRect);
+
+    // Force redraw. The MagnifierUpdateCallback will get called immediately!!
+    ::InvalidateRect(HWND_MAGNIFIER, NULL, TRUE);
+}
+
+std::function<void(void)> TheRefreshCallback = CheckWhichModeShouldRun;
+
+LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_TIMER:
+        TheRefreshCallback();
+    break;
+    case WM_DESTROY:
+        PostQuitMessage(0);
+    break;
+    case WM_LBUTTONDOWN:
+        PostQuitMessage(0);
+    break;
+    default:
+        return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+    return 0;
 }

@@ -7,6 +7,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <functional>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -86,7 +87,7 @@ public:
 };
 
 
-int ALL_MONITOR_RECT_INFO_COUNT = 0;
+int ALL_MONITOR_INFO_COUNT = 0;
 RECT ALL_MONITOR_RECT_INFO[32] = {0};
 SIZE ALL_MONITOR_SIZE_INFO[32] = {0};
 
@@ -102,9 +103,9 @@ private:
         size.cx = lprcMonitor->right - lprcMonitor->left,
         size.cy = lprcMonitor->bottom - lprcMonitor->top,
 
-        ALL_MONITOR_RECT_INFO[ALL_MONITOR_RECT_INFO_COUNT] = *lprcMonitor;
-        ALL_MONITOR_SIZE_INFO[ALL_MONITOR_RECT_INFO_COUNT] = size;
-        ALL_MONITOR_RECT_INFO_COUNT++;
+        ALL_MONITOR_RECT_INFO[ALL_MONITOR_INFO_COUNT] = *lprcMonitor;
+        ALL_MONITOR_SIZE_INFO[ALL_MONITOR_INFO_COUNT] = size;
+        ALL_MONITOR_INFO_COUNT++;
 
         return TRUE;
     }
