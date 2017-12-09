@@ -15,6 +15,7 @@ HDC HDC_FOR_UI_WND_CANVASE;
 Gdiplus::Bitmap* BITMAP_MASK_CIRCLE;
 
 Gdiplus::Color CAPTURED_IMAGE[GRID_NUMUBER][GRID_NUMUBER];
+const auto& CAPTURED_COLOR = CAPTURED_IMAGE[GRID_NUMUBER_L][GRID_NUMUBER_L];
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -37,9 +38,9 @@ void DrawZoomedCanvas();
 
 int main(int argc, char* argv[])
 {
-    class GDI_PLUS_INITIALIZER GDI_PLUS_INITIALIZER;
-    class MONITOR_INFO_INITIALIZER MONITOR_INFO_INITIALIZER;
-    class MAGNIFICATION_INITIALIZER MAGNIFICATION_INITIALIZER;
+    struct GDI_PLUS_INITIALIZER GDI_PLUS_INITIALIZER;
+    struct MONITOR_INFO_INITIALIZER MONITOR_INFO_INITIALIZER;
+    struct MAGNIFICATION_INITIALIZER MAGNIFICATION_INITIALIZER;
 
     auto hInstance = ::GetModuleHandle(nullptr);
 
@@ -75,7 +76,7 @@ int main(int argc, char* argv[])
         UI_WINDOW_INITIALIZER(HINSTANCE hInstance)
         {
             HWND_UI = ::CreateWindowEx(\
-                                    WS_EX_TOPMOST | WS_EX_LAYERED,
+                                    WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
                                     WND_CLASS_NAME,
                                     L"ColorPicker",
                                     WS_POPUP,
@@ -235,6 +236,13 @@ int main(int argc, char* argv[])
         ::TranslateMessage(&msg);
         ::DispatchMessage(&msg);
     }
+
+    printf("#%02X%02X%02X\n", \
+            CAPTURED_COLOR.GetR(),
+            CAPTURED_COLOR.GetG(),
+            CAPTURED_COLOR.GetB());
+    fflush(stdout);
+
     return (int) msg.wParam;
 }
 
@@ -330,14 +338,14 @@ BOOL WINAPI MagnifierUpdateCallback(HWND hWnd, \
 
     static bool initd = [&srcheader, &capture_all_screen_bitmap](){
         /*  */ if(srcheader.format == GUID_WICPixelFormat32bppRGBA ) {
-            printf("GUID_WICPixelFormat32bppRGBA\n");
+            // printf("GUID_WICPixelFormat32bppRGBA\n");
             TheRefreshCallback = MagnifierBasedRefreshCallback;
         } else if(srcheader.format == GUID_WICPixelFormat32bppBGR ){
-            printf("GUID_WICPixelFormat32bppBGR\n");
+            // printf("GUID_WICPixelFormat32bppBGR\n");
             capture_all_screen_bitmap();
             TheRefreshCallback = SnapshotBasedRefreshCallback;
         } else {
-            printf("GUID_WICPixelFormat Unkwown\n");
+            // printf("GUID_WICPixelFormat Unkwown\n");
             capture_all_screen_bitmap();
             TheRefreshCallback = SnapshotBasedRefreshCallback;
         }
@@ -353,9 +361,6 @@ BOOL WINAPI MagnifierUpdateCallback(HWND hWnd, \
     {
         for(int idx_x = 0; idx_x < GRID_NUMUBER; ++idx_x)
         {
-            int x = 1 + (GRID_PIXEL + 1)*idx_x;
-            int y = 1 + (GRID_PIXEL + 1)*idx_y;
-
             const auto src_pixel = &src_buffer[idx_y*GRID_NUMUBER*4 + idx_x*4];
             const auto r = src_pixel[2];
             const auto g = src_pixel[1];
@@ -378,7 +383,7 @@ void SnapshotBasedRefreshCallback()
     ::GetCursorPos(&mousePos);
 
     int mousePosX, mousePosY;
-    Gdiplus::Bitmap* current_capture_bitmap;
+    Gdiplus::Bitmap* current_capture_bitmap = nullptr;
     for (int idx = 0; idx < ALL_MONITOR_INFO_COUNT; ++idx)
     {
         if( PtInRect(&ALL_MONITOR_RECT_INFO[idx], mousePos) )
@@ -502,7 +507,8 @@ void DrawZoomedCanvas()
     painter.Restore(graphics_state);
 
     // mask circle
-    painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0);
+    painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0, \
+                        UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT);
 
     /**************************************************************************/
     HBITMAP hBitmap;
