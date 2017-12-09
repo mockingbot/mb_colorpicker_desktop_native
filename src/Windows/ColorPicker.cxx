@@ -226,6 +226,7 @@ int main(int argc, char* argv[])
     }
 
     //*************************************************************************//
+    ::ShowCursor(FALSE);
     ::ShowWindow(HWND_UI, SW_SHOW);
     // ::ShowWindow(HWND_MAGNIFIER_HOST, SW_SHOW);
 
@@ -243,6 +244,7 @@ int main(int argc, char* argv[])
             CAPTURED_COLOR.GetB());
     fflush(stdout);
 
+    ::ShowCursor(TRUE);
     return (int) msg.wParam;
 }
 
