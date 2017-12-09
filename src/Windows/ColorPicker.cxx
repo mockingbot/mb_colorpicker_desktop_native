@@ -14,6 +14,8 @@ HDC HDC_FOR_UI_WND_CANVASE;
 
 Gdiplus::Bitmap* BITMAP_MASK_CIRCLE;
 
+Gdiplus::Color CAPTURED_IMAGE[GRID_NUMUBER][GRID_NUMUBER];
+
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 const UINT UPDATE_TIMER_INTERVAL = 16; // close to the refresh rate @60hz
@@ -31,6 +33,7 @@ BOOL WINAPI MagnifierUpdateCallback(HWND hWnd, \
                                     void* destdata, MAGIMAGEHEADER destheader, \
                                     RECT unclipped, RECT clipped, HRGN dirty);
 
+void DrawZoomedCanvas();
 
 int main(int argc, char* argv[])
 {
@@ -343,89 +346,26 @@ BOOL WINAPI MagnifierUpdateCallback(HWND hWnd, \
 
 
     /**************************************************************************/
-    // Paint Zoomed Image
+    // Update Zoomed Image
     const auto src_buffer = (BYTE*)srcdata;
 
-    Gdiplus::Graphics graphics(HDC_FOR_UI_WND_CANVASE);
-    Gdiplus::Bitmap bitmap(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, &graphics);
-
-    Gdiplus::Graphics painter(&bitmap);
-
-    // Paint zoomed capture image inside cliped circle
-    auto graphics_state = painter.Save();
+    for(int idx_y = 0; idx_y < GRID_NUMUBER; ++idx_y)
     {
-        // clip the circle
-        Gdiplus::GraphicsPath path(Gdiplus::FillMode::FillModeWinding);
-        path.AddEllipse(4, 4, 163, 163);
-        Gdiplus::Region region(&path);
-        painter.SetClip(&region, Gdiplus::CombineMode::CombineModeReplace);
-
-        // draw zoomed image
-        Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.25, 0xCF, 0xCF, 0xCF), 1);
-        // Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.05, 0x4F, 0x4F, 0x4F), 1);
-        for(int idx_y = 0; idx_y < GRID_NUMUBER; ++idx_y)
+        for(int idx_x = 0; idx_x < GRID_NUMUBER; ++idx_x)
         {
-            for(int idx_x = 0; idx_x < GRID_NUMUBER; ++idx_x)
-            {
-                int x = 1 + (GRID_PIXEL + 1)*idx_x;
-                int y = 1 + (GRID_PIXEL + 1)*idx_y;
+            int x = 1 + (GRID_PIXEL + 1)*idx_x;
+            int y = 1 + (GRID_PIXEL + 1)*idx_y;
 
-                const auto src_pixel = &src_buffer[idx_y*GRID_NUMUBER*4 + idx_x*4];
-                const auto r = src_pixel[2];
-                const auto g = src_pixel[1];
-                const auto b = src_pixel[0];
-                // const auto a = src_pixel[3];
-
-                Gdiplus::SolidBrush brush(Gdiplus::Color(0xFF, r, g, b));
-                painter.FillRectangle(&brush, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
-                painter.DrawRectangle(&grid_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
-            }
+            const auto src_pixel = &src_buffer[idx_y*GRID_NUMUBER*4 + idx_x*4];
+            const auto r = src_pixel[2];
+            const auto g = src_pixel[1];
+            const auto b = src_pixel[0];
+            // const auto a = src_pixel[3];
+            CAPTURED_IMAGE[idx_y][idx_x] = Gdiplus::Color(0xFF, r, g, b);
         }
-        // draw center grid
-        int x = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
-        int y = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
-
-        Gdiplus::Pen black_pen(Gdiplus::Color(0xFF, 0x00, 0x00, 0x00), 1);
-        Gdiplus::Pen white_pen(Gdiplus::Color(0xFF, 0xFF, 0xFF, 0xFF), 1);
-
-        painter.DrawRectangle(&black_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
-        painter.DrawRectangle(&white_pen, x+1, y+1, GRID_PIXEL-1, GRID_PIXEL-1);
     }
-    painter.Restore(graphics_state);
 
-    // mask circle
-    painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0);
-
-    /**************************************************************************/
-    HBITMAP hBitmap;
-    bitmap.GetHBITMAP(Gdiplus::Color(), &hBitmap);
-
-    auto hPrevObj = ::SelectObject(HDC_FOR_UI_WND_CANVASE, hBitmap);
-
-    POINT mousePos;
-    ::GetCursorPos(&mousePos);
-
-    // POINT ptDest = {800, 400};
-    POINT ptDest = { mousePos.x - UI_WINDOW_WIDTH/2, mousePos.y - UI_WINDOW_HEIGHT/2};
-
-    POINT ptSrc = {0, 0};
-    SIZE client = {UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT};
-    BLENDFUNCTION blend_func = {AC_SRC_OVER, 0, 0xFF, AC_SRC_ALPHA};
-
-    ::UpdateLayeredWindow(\
-                        HWND_UI,
-                        HDC_FOR_UI_WND,
-                        &ptDest,
-                        &client,
-                        HDC_FOR_UI_WND_CANVASE,
-                        &ptSrc,
-                        0,
-                        &blend_func,
-                        ULW_ALPHA
-                        );
-
-    ::SelectObject(HDC_FOR_UI_WND_CANVASE, hPrevObj);
-    ::DeleteObject(hBitmap);
+    DrawZoomedCanvas();
 
     return TRUE;
 }
@@ -456,89 +396,26 @@ void SnapshotBasedRefreshCallback()
                     SWP_NOACTIVATE|SWP_NOMOVE|SWP_NOSIZE);
 
     /**************************************************************************/
-
-    Gdiplus::Graphics graphics(HDC_FOR_UI_WND_CANVASE);
-    Gdiplus::Bitmap bitmap(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, &graphics);
-
-    Gdiplus::Graphics painter(&bitmap);
-
-    // Paint zoomed capture image inside cliped circle
-    auto graphics_state = painter.Save();
+    // Update Zoomed Image
+    for(int idx_y = 0; idx_y < GRID_NUMUBER; ++idx_y)
     {
-        // clip the circle
-        Gdiplus::GraphicsPath path(Gdiplus::FillMode::FillModeWinding);
-        path.AddEllipse(4, 4, 163, 163);
-        Gdiplus::Region region(&path);
-        painter.SetClip(&region, Gdiplus::CombineMode::CombineModeReplace);
-
-        // draw zoomed image
-        Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.25, 0xCF, 0xCF, 0xCF), 1);
-        // Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.05, 0x4F, 0x4F, 0x4F), 1);
-        for(int idx_y = 0; idx_y < GRID_NUMUBER; ++idx_y)
+        for(int idx_x = 0; idx_x < GRID_NUMUBER; ++idx_x)
         {
-            for(int idx_x = 0; idx_x < GRID_NUMUBER; ++idx_x)
-            {
-                int x = 1 + (GRID_PIXEL + 1)*idx_x;
-                int y = 1 + (GRID_PIXEL + 1)*idx_y;
+            int x = 1 + (GRID_PIXEL + 1)*idx_x;
+            int y = 1 + (GRID_PIXEL + 1)*idx_y;
 
-                int p_x = mousePosX + idx_x;
-                int p_y = mousePosY + idx_y;
+            int p_x = mousePosX + idx_x;
+            int p_y = mousePosY + idx_y;
 
-                Gdiplus::Color color;
-                current_capture_bitmap->GetPixel(p_x, p_y, &color);
+            Gdiplus::Color color;
+            current_capture_bitmap->GetPixel(p_x, p_y, &color);
 
-                Gdiplus::SolidBrush brush(color);
-                painter.FillRectangle(&brush, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
-                painter.DrawRectangle(&grid_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
-            }
+            CAPTURED_IMAGE[idx_y][idx_x] = color;
         }
-
-        // draw center grid
-        int x = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
-        int y = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
-
-        Gdiplus::Pen black_pen(Gdiplus::Color(0xFF, 0x00, 0x00, 0x00), 1);
-        Gdiplus::Pen white_pen(Gdiplus::Color(0xFF, 0xFF, 0xFF, 0xFF), 1);
-
-        painter.DrawRectangle(&black_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
-        painter.DrawRectangle(&white_pen, x+1, y+1, GRID_PIXEL-1, GRID_PIXEL-1);
     }
-    painter.Restore(graphics_state);
 
-    // mask circle
-    painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0);
-
-    /**************************************************************************/
-    HBITMAP hBitmap;
-    bitmap.GetHBITMAP(Gdiplus::Color(), &hBitmap);
-
-    auto hPrevObj = ::SelectObject(HDC_FOR_UI_WND_CANVASE, hBitmap);
-
-
-    // POINT ptDest = {800, 400};
-    POINT ptDest = { mousePos.x - UI_WINDOW_WIDTH/2, mousePos.y - UI_WINDOW_HEIGHT/2};
-
-    POINT ptSrc = {0, 0};
-    SIZE client = {UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT};
-    BLENDFUNCTION blend_func = {AC_SRC_OVER, 0, 0xFF, AC_SRC_ALPHA};
-
-    ::UpdateLayeredWindow(\
-                        HWND_UI,
-                        HDC_FOR_UI_WND,
-                        &ptDest,
-                        &client,
-                        HDC_FOR_UI_WND_CANVASE,
-                        &ptSrc,
-                        0,
-                        &blend_func,
-                        ULW_ALPHA
-                        );
-
-    ::SelectObject(HDC_FOR_UI_WND_CANVASE, hPrevObj);
-    ::DeleteObject(hBitmap);
-    //
+    DrawZoomedCanvas();
 }
-
 
 void CheckWhichModeShouldRun()
 {
@@ -578,3 +455,84 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     }
     return 0;
 }
+
+
+void DrawZoomedCanvas()
+{
+    Gdiplus::Graphics graphics(HDC_FOR_UI_WND_CANVASE);
+    Gdiplus::Bitmap bitmap(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, &graphics);
+
+    Gdiplus::Graphics painter(&bitmap);
+
+    // Paint zoomed capture image inside cliped circle
+    auto graphics_state = painter.Save();
+    {
+        // clip the circle
+        Gdiplus::GraphicsPath path(Gdiplus::FillMode::FillModeWinding);
+        path.AddEllipse(4, 4, 163, 163);
+        Gdiplus::Region region(&path);
+        painter.SetClip(&region, Gdiplus::CombineMode::CombineModeReplace);
+
+        // draw zoomed image
+        Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.25, 0xCF, 0xCF, 0xCF), 1);
+        // Gdiplus::Pen grid_pen(Gdiplus::Color(0xFF*0.05, 0x4F, 0x4F, 0x4F), 1);
+        for(int idx_y = 0; idx_y < GRID_NUMUBER; ++idx_y)
+        {
+            for(int idx_x = 0; idx_x < GRID_NUMUBER; ++idx_x)
+            {
+                int x = 1 + (GRID_PIXEL + 1)*idx_x;
+                int y = 1 + (GRID_PIXEL + 1)*idx_y;
+
+                const auto& pixel_color = CAPTURED_IMAGE[idx_y][idx_x];
+                Gdiplus::SolidBrush brush(pixel_color);
+                painter.FillRectangle(&brush, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+                painter.DrawRectangle(&grid_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+            }
+        }
+        // draw center grid
+        int x = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
+        int y = 1 + (GRID_PIXEL + 1)*GRID_NUMUBER_L;
+
+        Gdiplus::Pen black_pen(Gdiplus::Color(0xFF, 0x00, 0x00, 0x00), 1);
+        Gdiplus::Pen white_pen(Gdiplus::Color(0xFF, 0xFF, 0xFF, 0xFF), 1);
+
+        painter.DrawRectangle(&black_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+        painter.DrawRectangle(&white_pen, x+1, y+1, GRID_PIXEL-1, GRID_PIXEL-1);
+    }
+    painter.Restore(graphics_state);
+
+    // mask circle
+    painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0);
+
+    /**************************************************************************/
+    HBITMAP hBitmap;
+    bitmap.GetHBITMAP(Gdiplus::Color(), &hBitmap);
+
+    auto hPrevObj = ::SelectObject(HDC_FOR_UI_WND_CANVASE, hBitmap);
+
+    POINT mousePos;
+    ::GetCursorPos(&mousePos);
+
+    // POINT ptDest = {800, 400};
+    POINT ptDest = { mousePos.x - UI_WINDOW_WIDTH/2, mousePos.y - UI_WINDOW_HEIGHT/2};
+
+    POINT ptSrc = {0, 0};
+    SIZE client = {UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT};
+    BLENDFUNCTION blend_func = {AC_SRC_OVER, 0, 0xFF, AC_SRC_ALPHA};
+
+    ::UpdateLayeredWindow(\
+                        HWND_UI,
+                        HDC_FOR_UI_WND,
+                        &ptDest,
+                        &client,
+                        HDC_FOR_UI_WND_CANVASE,
+                        &ptSrc,
+                        0,
+                        &blend_func,
+                        ULW_ALPHA
+                        );
+
+    ::SelectObject(HDC_FOR_UI_WND_CANVASE, hPrevObj);
+    ::DeleteObject(hBitmap);
+}
+
