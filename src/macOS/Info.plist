@@ -7,7 +7,7 @@
     <string>English</string>
 <!-- CFBundleDisplayName -->
     <key>CFBundleDisplayName</key>
-    <string>MockingBot ColorPicker</string>
+    <string>MoDao Native ColorPicker</string>
 <!-- CFBundleExecutable -->
     <key>CFBundleExecutable</key>
     <string>ColorPicker</string>
@@ -34,11 +34,14 @@
     <string>1.0.1n</string>
 
     <key>CFBundleLongVersionString</key>
-    <string>1.0.1n © 2012-2017 MockingBot</string>
+    <string>1.0.1n © 2012-2018 MoDao</string>
 <!-- NSHumanReadableCopyright  -->
     <key>NSHumanReadableCopyright</key>
-    <string>Copyright MockingBot</string>
+    <string>Copyright MoDao</string>
 
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+<!-- 
     <key>CFBundleSignature</key>
     <string>????</string>
 
@@ -49,7 +52,8 @@
     <true/>
 
     <key>LSUIElement</key>
-    <true/>
+    <true/> 
+    -->
 </dict>
 </plist>
 
