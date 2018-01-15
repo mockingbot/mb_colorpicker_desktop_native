@@ -177,7 +177,19 @@ CGImage* mask_circle_x2;
     CGContextClip(ctx);
     CGContextSetLineWidth(ctx, 1.0f);
     CGContextSetShouldAntialias(ctx, NO);
-    /*
+
+    {
+        auto color = CGColorCreateGenericRGB(0.62f, 0.62f, 0.62f, 0.92f);
+        CGContextSetFillColorWithColor(ctx, color);
+        CGRect rect;
+        rect.origin.x = 0;
+        rect.origin.y = 0;
+        rect.size.width = UI_WINDOW_WIDTH;
+        rect.size.height = UI_WINDOW_HEIGHT;
+        CGContextFillRect(ctx, rect);
+    }
+
+    // /*
     @autoreleasepool {
 
     for(int idx_y = 0; idx_y < CAPTURE_HEIGHT; ++idx_y)
@@ -216,20 +228,11 @@ CGImage* mask_circle_x2;
             rect.size.width = GRID_PIXEL;
             rect.size.height = GRID_PIXEL;
             CGContextFillRect(ctx, rect);
-
-            CGContextSetRGBStrokeColor(ctx, 0.62f, 0.62f, 0.62f, 0.92f);
-            // CGContextSetRGBStrokeColor(ctx, 1.0f, 0.0f, 0.0f, 1.0f);
-            rect.origin.x = (GRID_PIXEL+1)*idx_x;
-            rect.origin.y = (GRID_PIXEL+1)*idx_y;
-            rect.size.width = GRID_PIXEL+1;
-            rect.size.height = GRID_PIXEL+1;
-            CGContextStrokeRect(ctx, rect);
        }
     }
 
     } // autorelease
-    
-    */
+    // */
 
     CGContextRestoreGState(ctx);
 

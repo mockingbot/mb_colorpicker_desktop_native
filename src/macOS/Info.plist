@@ -41,18 +41,19 @@
 
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-<!-- 
-    <key>CFBundleSignature</key>
-    <string>????</string>
-
-    <key>CSResourcesFileMapped</key>
-    <true/>
 
     <key>NSHighResolutionCapable</key>
     <true/>
 
     <key>LSUIElement</key>
     <true/> 
+
+<!-- 
+    <key>CFBundleSignature</key>
+    <string>????</string>
+
+    <key>CSResourcesFileMapped</key>
+    <true/>
     -->
 </dict>
 </plist>
