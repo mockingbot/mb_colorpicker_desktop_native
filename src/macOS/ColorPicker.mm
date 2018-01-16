@@ -6,6 +6,8 @@ CGFloat CAPTUREED_PIXEL_COLOR_R [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 CGFloat CAPTUREED_PIXEL_COLOR_G [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 CGFloat CAPTUREED_PIXEL_COLOR_B [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 
+CGFloat TheR, TheG, TheB;
+
 @implementation Application
 
 - (id)init
@@ -80,6 +82,12 @@ CGFloat CAPTUREED_PIXEL_COLOR_B [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 - (void)close
 {
     CGDisplayShowCursor(kCGDirectMainDisplay);
+    // printf("#% 8.4f% 8.4f% 8.4f\n", TheR*255.0f, TheG*255.0f, TheB*255.0f);
+    int r = round(TheR*255.0f);
+    int g = round(TheG*255.0f);
+    int b = round(TheB*255.0f);
+    printf("#%02X%02X%02X\n", r, g, b);
+    fflush(stdout);
     [super close];
 }
 
@@ -238,8 +246,6 @@ CGColorSpace* current_color_space = nullptr;
         delete[] check_marks;
     }
 
-    // printf("display_id_idx %d\n", display_id_idx);
-
     current_color_space = color_space_list[display_id_idx];
 
     CGRect rect;
@@ -344,6 +350,39 @@ CGColorSpace* current_color_space = nullptr;
        }
     }
 
+    { // black and white and the center pixel color
+        int x = GRID_NUMUBER_L;
+        int y = GRID_NUMUBER_L;
+        CGRect rect;
+        rect.origin.x = 8 + 1 + (1+GRID_PIXEL)*x - 1;
+        rect.origin.y = 8 + 1 + (1+GRID_PIXEL)*y - 1;
+        rect.size.width = GRID_PIXEL + 2;
+        rect.size.height = GRID_PIXEL + 2;
+
+        CGContextSetRGBFillColor(ctx, 0.0f, 0.0f, 0.0f, 1.0f);
+        CGContextFillRect(ctx, rect);
+
+        rect.origin.x = 8 + 1 + (1+GRID_PIXEL)*x;
+        rect.origin.y = 8 + 1 + (1+GRID_PIXEL)*y;
+        rect.size.width = GRID_PIXEL;
+        rect.size.height = GRID_PIXEL;
+
+        CGContextSetRGBFillColor(ctx, 1.0f, 1.0f, 1.0f, 1.0f);
+        CGContextFillRect(ctx, rect);
+
+
+        rect.origin.x = 8 + 1 + (1+GRID_PIXEL)*x + 1;
+        rect.origin.y = 8 + 1 + (1+GRID_PIXEL)*y + 1;
+        rect.size.width = GRID_PIXEL - 2;
+        rect.size.height = GRID_PIXEL - 2;
+
+        TheR = CAPTUREED_PIXEL_COLOR_R[y][x];
+        TheG = CAPTUREED_PIXEL_COLOR_G[y][x];
+        TheB = CAPTUREED_PIXEL_COLOR_B[y][x];
+        CGContextSetRGBFillColor(ctx, TheR, TheG, TheB, 1.0);
+        CGContextFillRect(ctx, rect);
+    }
+
     CFRelease(clip_path);
     CGContextRestoreGState(ctx);
 
@@ -355,7 +394,6 @@ CGColorSpace* current_color_space = nullptr;
 
 - (void)drawRect:(NSRect)dirtyRect
 {
-    // printf("draw\n");
     auto ctx = [NSGraphicsContext currentContext].CGContext;
 
     CGRect wnd_rect;
