@@ -28,13 +28,13 @@
     <string>APPL</string>
 <!-- CFBundleShortVersionString -->
     <key>CFBundleShortVersionString</key>
-    <string>1.0.1</string>
+    <string>1.1.1</string>
 <!-- CFBundleVersion -->
     <key>CFBundleVersion</key>
-    <string>1.0.1n</string>
+    <string>1.1.1</string>
 
     <key>CFBundleLongVersionString</key>
-    <string>1.0.1n © 2012-2018 MoDao</string>
+    <string>1.1.1 © 2017-2018 MoDao</string>
 <!-- NSHumanReadableCopyright  -->
     <key>NSHumanReadableCopyright</key>
     <string>Copyright MoDao</string>
@@ -46,9 +46,9 @@
     <true/>
 
     <key>LSUIElement</key>
-    <true/> 
+    <true/>
 
-<!-- 
+<!--
     <key>CFBundleSignature</key>
     <string>????</string>
 

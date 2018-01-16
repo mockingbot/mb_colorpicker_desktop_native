@@ -345,7 +345,8 @@ CGColorSpace* current_color_space = nullptr;
 
     /*********************************************************************/
     // draw the mask
-    CGContextDrawImage(ctx, wnd_rect, mask_circle_x1);
+    // CGContextDrawImage(ctx, wnd_rect, mask_circle_x1);
+    CGContextDrawImage(ctx, wnd_rect, mask_circle_x2);
 }
 
 @end
