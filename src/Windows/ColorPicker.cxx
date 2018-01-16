@@ -12,7 +12,8 @@ HWND HWND_MAGNIFIER;
 HDC HDC_FOR_UI_WND;
 HDC HDC_FOR_UI_WND_CANVASE;
 
-Gdiplus::Bitmap* BITMAP_MASK_CIRCLE;
+Gdiplus::Bitmap* BITMAP_MASK_CIRCLE_x1;
+Gdiplus::Bitmap* BITMAP_MASK_CIRCLE_x2;
 
 Gdiplus::Color CAPTURED_IMAGE[GRID_NUMUBER][GRID_NUMUBER];
 const auto& CAPTURED_COLOR = CAPTURED_IMAGE[GRID_NUMUBER_L][GRID_NUMUBER_L];
@@ -201,12 +202,15 @@ int main(int argc, char* argv[])
     {
         BITMAP_MASK_INITIALIZER(HINSTANCE hInstance)
         {
-            BITMAP_MASK_CIRCLE = LoadBitmapFromResPNG(hInstance, \
+            BITMAP_MASK_CIRCLE_x1 = LoadBitmapFromResPNG(hInstance, \
                                             RES_INDEX_FOR_Circle_Mask_x1);
+            BITMAP_MASK_CIRCLE_x2 = LoadBitmapFromResPNG(hInstance, \
+                                            RES_INDEX_FOR_Circle_Mask_x2);
         }
         ~BITMAP_MASK_INITIALIZER()
         {
-            delete BITMAP_MASK_CIRCLE;
+            delete BITMAP_MASK_CIRCLE_x2;
+            delete BITMAP_MASK_CIRCLE_x1;
         }
     } BITMAP_MASK_INITIALIZER(hInstance);
 
@@ -509,7 +513,7 @@ void DrawZoomedCanvas()
     painter.Restore(graphics_state);
 
     // mask circle
-    painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0, \
+    painter.DrawImage(BITMAP_MASK_CIRCLE_x2, 0, 0, \
                         UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT);
 
     /**************************************************************************/
