@@ -37,19 +37,22 @@ const int UI_WINDOW_HEIGHT = GRID_PIXEL + 2 + \
                             (GRID_NUMUBER_L*GRID_PIXEL + GRID_NUMUBER_L)*2;
 
 
-@interface HostForGrabPictureSurroundCurrentCursor: NSObject
--(void)onTick:(NSTimer* )timer;
-@end
-
 @interface Application: NSApplication <NSApplicationDelegate>
+
 @end
 
 
 @interface MainWindow : NSWindow <NSWindowDelegate>
+
+-(void)onTimerTick:(NSTimer* )timer;
+
 @end
 
 
 @interface MainView : NSView
+
+-(void)refreshPictureSurroundCurrentCursor;
+
 @end
 
 
