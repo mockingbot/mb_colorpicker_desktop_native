@@ -458,7 +458,8 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     case WM_DESTROY:
         PostQuitMessage(0);
     break;
-    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_RBUTTONUP:
         PostQuitMessage(0);
     break;
     default:
@@ -513,7 +514,7 @@ void DrawZoomedCanvas()
     painter.Restore(graphics_state);
 
     // mask circle
-    painter.DrawImage(BITMAP_MASK_CIRCLE_x2, 0, 0, \
+    painter.DrawImage(BITMAP_MASK_CIRCLE_x1, 0, 0, \
                         UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT);
 
     /**************************************************************************/

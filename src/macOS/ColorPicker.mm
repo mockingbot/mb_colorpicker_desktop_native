@@ -64,6 +64,7 @@ CGFloat CAPTUREED_PIXEL_COLOR_B [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 
     [[NSRunLoop currentRunLoop] addTimer:timer forMode: NSDefaultRunLoopMode];
 
+    CGDisplayHideCursor(kCGDirectMainDisplay);
     TheMainWindow = self;
     return self;
 }
@@ -72,6 +73,12 @@ CGFloat CAPTUREED_PIXEL_COLOR_B [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 {
     // force redraw
     [[self contentView] display];
+}
+
+- (void)close
+{
+    CGDisplayShowCursor(kCGDirectMainDisplay);
+    [super close];
 }
 
 - (BOOL)canBecomeKeyWindow
@@ -229,7 +236,7 @@ CGColorSpace* current_color_space = nullptr;
         delete[] check_marks;
     }
 
-    printf("display_id_idx %d\n", display_id_idx);
+    // printf("display_id_idx %d\n", display_id_idx);
 
     current_color_space = color_space_list[display_id_idx];
 
@@ -285,7 +292,7 @@ CGColorSpace* current_color_space = nullptr;
 
 - (void)drawRect:(NSRect)dirtyRect
 {
-    printf("draw\n");
+    // printf("draw\n");
     [self refreshPictureSurroundCurrentCursor];
 
     auto ctx = [NSGraphicsContext currentContext].CGContext;
@@ -367,6 +374,7 @@ MouseEventHook::Callback(CGEventTapProxy proxy, \
     {
         case kCGEventMouseMoved:
         {
+            NSLog(@"move");
             [TheMainWindow setFrameOrigin: mouse_pos];
         }
         break;
