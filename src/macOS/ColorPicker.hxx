@@ -30,10 +30,12 @@ const int GRID_NUMUBER = GRID_NUMUBER_L*2 + 1;
 const int CAPTURE_WIDTH = GRID_NUMUBER;
 const int CAPTURE_HEIGHT = GRID_NUMUBER;
 
-const int UI_WINDOW_WIDTH = GRID_PIXEL + 2 + \
+const int UI_WINDOW_WIDTH = 16 + // <- window shadow
+                            GRID_PIXEL + 2 + // center pixel
                             (GRID_NUMUBER_L*GRID_PIXEL + GRID_NUMUBER_L)*2;
 
-const int UI_WINDOW_HEIGHT = GRID_PIXEL + 2 + \
+const int UI_WINDOW_HEIGHT = 16 + // <- window shadow
+                            GRID_PIXEL + 2 + // center pixel
                             (GRID_NUMUBER_L*GRID_PIXEL + GRID_NUMUBER_L)*2;
 
 

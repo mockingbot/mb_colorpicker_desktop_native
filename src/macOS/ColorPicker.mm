@@ -71,6 +71,8 @@ CGFloat CAPTUREED_PIXEL_COLOR_B [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 
 - (void)onTimerTick:(NSTimer* )timer
 {
+    // refresh first!
+    [[self contentView] refreshPictureSurroundCurrentCursor];
     // force redraw
     [[self contentView] display];
 }
@@ -91,8 +93,7 @@ CGFloat CAPTUREED_PIXEL_COLOR_B [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 
 @implementation MainView
 
-CGImage* mask_circle_x1;
-CGImage* mask_circle_x2;
+CGImage* mask_circle;
 
 const uint32_t display_id_list_size = 16; // 16 display is enought
 
@@ -103,6 +104,9 @@ CGRect display_bound_list[display_id_list_size] = {};
 uint32_t display_count = 0;
 
 CGImage* image_surround_current_cursor = nullptr;
+
+CGImage* zoomed_image_surround_current_cursor = nullptr;
+
 CGColorSpace* current_color_space = nullptr;
 
 - (id)init
@@ -129,13 +133,8 @@ CGColorSpace* current_color_space = nullptr;
         return [image CGImageForProposedRect:&imageRect context:context hints:nil];
     };
 
-    mask_circle_x1 = load_image([[NSBundle mainBundle]
-                                  pathForResource:@"Mask@1"
-                                  ofType:@"png"]);
-
-    mask_circle_x2 = load_image([[NSBundle mainBundle]
-                                  pathForResource:@"Mask@2"
-                                  ofType:@"png"]);
+    mask_circle = load_image([[NSBundle mainBundle] pathForResource:@"Mask" \
+                                                    ofType:@"png"]);
 
     if( kCGErrorSuccess != CGGetActiveDisplayList(display_id_list_size, \
                                                   display_id_list, \
@@ -157,6 +156,9 @@ CGColorSpace* current_color_space = nullptr;
 {
     if( image_surround_current_cursor != nullptr ){
         CGImageRelease(image_surround_current_cursor);
+    }
+    if( zoomed_image_surround_current_cursor != nullptr ){
+        CGImageRelease(zoomed_image_surround_current_cursor);
     }
 
     auto window_list = CGWindowListCreate(kCGWindowListOptionOnScreenOnly, \
@@ -276,9 +278,9 @@ CGColorSpace* current_color_space = nullptr;
                 fixed_blue  = [fixed_color blueComponent ];
                 CFRelease(color);
             }
-            CAPTUREED_PIXEL_COLOR_R[y][x] = fixed_red;
-            CAPTUREED_PIXEL_COLOR_G[y][x] = fixed_green;
-            CAPTUREED_PIXEL_COLOR_B[y][x] = fixed_blue;
+            CAPTUREED_PIXEL_COLOR_R[CAPTURE_HEIGHT-1-y][x] = fixed_red;
+            CAPTUREED_PIXEL_COLOR_G[CAPTURE_HEIGHT-1-y][x] = fixed_green;
+            CAPTUREED_PIXEL_COLOR_B[CAPTURE_HEIGHT-1-y][x] = fixed_blue;
        }
     }
 
@@ -288,14 +290,11 @@ CGColorSpace* current_color_space = nullptr;
 
     image_surround_current_cursor = cg_image;
 
-}
-
-- (void)drawRect:(NSRect)dirtyRect
-{
-    // printf("draw\n");
-    [self refreshPictureSurroundCurrentCursor];
-
-    auto ctx = [NSGraphicsContext currentContext].CGContext;
+    ////////////////////////////////////////////////////////////////////////////
+    auto color_space = CGColorSpaceCreateDeviceRGB();
+    auto ctx = CGBitmapContextCreate(nullptr, \
+                 UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, 32, 0, color_space, \
+                 kCGImageAlphaPremultipliedLast|kCGBitmapFloatComponents);
 
     CGRect wnd_rect;
     wnd_rect.origin.x = 0;
@@ -304,10 +303,10 @@ CGColorSpace* current_color_space = nullptr;
     wnd_rect.size.height = UI_WINDOW_HEIGHT;
 
     CGRect mask_bound;
-    mask_bound.origin.x = 4;
-    mask_bound.origin.y = 4;
-    mask_bound.size.width = 163;
-    mask_bound.size.height = 163;
+    mask_bound.origin.x = 8 + 2;
+    mask_bound.origin.y = 8 + 2;
+    mask_bound.size.width = UI_WINDOW_WIDTH - (8+2)*2;
+    mask_bound.size.height = UI_WINDOW_HEIGHT - (8+2)*2;
 
     CGContextSaveGState(ctx);
 
@@ -322,6 +321,7 @@ CGColorSpace* current_color_space = nullptr;
     auto grid_color = CGColorCreateGenericRGB(0.72f, 0.72f, 0.72f, 0.98f);
     CGContextSetFillColorWithColor(ctx, grid_color);
     CGContextFillRect(ctx, wnd_rect);
+    CFRelease(grid_color);
 
     /*********************************************************************/
     // draw each pixel
@@ -330,29 +330,44 @@ CGColorSpace* current_color_space = nullptr;
     {
        for(int x = 0; x < CAPTURE_WIDTH; ++x)
        {
-            color_values[0] = CAPTUREED_PIXEL_COLOR_R[y][x];
-            color_values[1] = CAPTUREED_PIXEL_COLOR_G[y][x];
-            color_values[2] = CAPTUREED_PIXEL_COLOR_B[y][x];
-            auto color = CGColorCreate(current_color_space, color_values);
-            CGContextSetFillColorWithColor(ctx, color);
+            auto r = CAPTUREED_PIXEL_COLOR_R[y][x];
+            auto g = CAPTUREED_PIXEL_COLOR_G[y][x];
+            auto b = CAPTUREED_PIXEL_COLOR_B[y][x];
+            CGContextSetRGBFillColor(ctx, r, g, b, 1.0);
 
             CGRect rect;
-            rect.origin.x = 1 + (1+GRID_PIXEL)*x;
-            rect.origin.y = UI_WINDOW_HEIGHT - (1 + (1+GRID_PIXEL)*(y+1));
+            rect.origin.x = 8 + 1 + (1+GRID_PIXEL)*x;
+            rect.origin.y = 8 + 1 + (1+GRID_PIXEL)*y;
             rect.size.width = GRID_PIXEL;
             rect.size.height = GRID_PIXEL;
             CGContextFillRect(ctx, rect);
-
-            CFRelease(color);
        }
     }
 
     CFRelease(clip_path);
     CGContextRestoreGState(ctx);
 
-    /*********************************************************************/
+    zoomed_image_surround_current_cursor = CGBitmapContextCreateImage(ctx);
+
+    CGContextRelease(ctx);
+    CGColorSpaceRelease(color_space);
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+    // printf("draw\n");
+    auto ctx = [NSGraphicsContext currentContext].CGContext;
+
+    CGRect wnd_rect;
+    wnd_rect.origin.x = 0;
+    wnd_rect.origin.y = 0;
+    wnd_rect.size.width = UI_WINDOW_WIDTH;
+    wnd_rect.size.height = UI_WINDOW_HEIGHT;
+
+    // draw the zoomed image suround cursor
+    CGContextDrawImage(ctx, wnd_rect, zoomed_image_surround_current_cursor);
     // draw the mask
-    CGContextDrawImage(ctx, wnd_rect, mask_circle_x2);
+    CGContextDrawImage(ctx, wnd_rect, mask_circle);
 }
 
 @end

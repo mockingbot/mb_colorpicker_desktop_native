@@ -42,8 +42,7 @@ project_build()
         cp -f $SRC_DIR/Info.plist $APP_DIR/Contents
 
         mkdir -p $APP_DIR/Contents/Resources > /dev/null
-        cp -f $RES_DIR/Mask@1.png $APP_DIR/Contents/Resources
-        cp -f $RES_DIR/Mask@2.png $APP_DIR/Contents/Resources
+        cp -f $RES_DIR/Mask@2+s.png $APP_DIR/Contents/Resources/Mask.png
 
         mkdir -p $APP_DIR/Contents/MacOS > /dev/null
         ld $LINK_FLAG $LINK_LIBS *.o -o $APP_DIR/Contents/MacOS/ColorPicker
