@@ -66,8 +66,10 @@ CGFloat TheR, TheG, TheB;
 
     [[NSRunLoop currentRunLoop] addTimer:timer forMode: NSDefaultRunLoopMode];
 
-    CGDisplayHideCursor(kCGDirectMainDisplay);
+    [NSCursor hide];
+
     TheMainWindow = self;
+
     return self;
 }
 
@@ -81,7 +83,8 @@ CGFloat TheR, TheG, TheB;
 
 - (void)close
 {
-    CGDisplayShowCursor(kCGDirectMainDisplay);
+    [NSCursor unhide];
+
     // printf("#% 8.4f% 8.4f% 8.4f\n", TheR*255.0f, TheG*255.0f, TheB*255.0f);
     int r = round(TheR*255.0f);
     int g = round(TheG*255.0f);
@@ -427,7 +430,8 @@ MouseEventHook::Callback(CGEventTapProxy proxy, \
     {
         case kCGEventMouseMoved:
         {
-            NSLog(@"move");
+            // NSLog(@"move");
+            [NSApp activateIgnoringOtherApps: YES];
             [TheMainWindow setFrameOrigin: mouse_pos];
         }
         break;
