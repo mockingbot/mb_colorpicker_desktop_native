@@ -39,7 +39,7 @@ const int UI_WINDOW_HEIGHT = 16 + // <- window shadow
                             (GRID_NUMUBER_L*GRID_PIXEL + GRID_NUMUBER_L)*2;
 
 
-@interface Application: NSApplication <NSApplicationDelegate>
+@interface AppDelegate: NSObject <NSApplicationDelegate>
 
 @end
 

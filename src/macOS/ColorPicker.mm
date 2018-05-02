@@ -8,12 +8,16 @@ CGFloat CAPTUREED_PIXEL_COLOR_B [CAPTURE_HEIGHT][CAPTURE_WIDTH];
 
 CGFloat TheR, TheG, TheB;
 
-@implementation Application
-
+@implementation AppDelegate
+{
+    NSWindow* window;
+    MouseEventHook hook;
+}
 - (id)init
 {
-    self = [super init];
-    self.delegate = self;
+    if (self = [super init]) {
+        window = [MainWindow new];
+    }
     return self;
 }
 
@@ -492,14 +496,10 @@ MouseEventHook::~MouseEventHook()
     CFRelease(mouse_event_tap);
 }
 
-int main(int argc, const char * argv[])
-{
-    MouseEventHook hook;
-
-    @autoreleasepool {
-        [Application new];
-        [MainWindow new];
-        [NSApp run];
-    }
+int main(int argc, const char * argv[]) {
+    NSApplication * app = [NSApplication sharedApplication];
+    [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
+    app.delegate = [AppDelegate new];
+    [app run];
     return 0;
 }
