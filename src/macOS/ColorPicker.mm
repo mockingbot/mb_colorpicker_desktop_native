@@ -85,6 +85,14 @@ CGFloat TheR, TheG, TheB;
     [[self contentView] display];
 }
 
+- (void)keyDown:(NSEvent *)event {
+    if (event.keyCode == 53) {
+        [self close];
+        return;
+    }
+    [super keyDown:event];
+}
+
 - (void)close
 {
     [NSCursor unhide];
