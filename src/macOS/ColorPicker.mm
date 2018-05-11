@@ -30,6 +30,9 @@ CGFloat TheR, TheG, TheB;
 
 
 @implementation MainWindow
+{
+    BOOL isESCKeyPressed;
+}
 
 - (id)init
 {
@@ -74,6 +77,8 @@ CGFloat TheR, TheG, TheB;
 
     TheMainWindow = self;
 
+    isESCKeyPressed = NO;
+
     return self;
 }
 
@@ -87,6 +92,7 @@ CGFloat TheR, TheG, TheB;
 
 - (void)keyDown:(NSEvent *)event {
     if (event.keyCode == 53) {
+        isESCKeyPressed = YES;
         [self close];
         return;
     }
@@ -96,12 +102,14 @@ CGFloat TheR, TheG, TheB;
 - (void)close
 {
     [NSCursor unhide];
-
-    // printf("#% 8.4f% 8.4f% 8.4f\n", TheR*255.0f, TheG*255.0f, TheB*255.0f);
-    int r = round(TheR*255.0f);
-    int g = round(TheG*255.0f);
-    int b = round(TheB*255.0f);
-    printf("#%02X%02X%02X\n", r, g, b);
+    if (isESCKeyPressed) {
+        printf("");
+    } else {
+        int r = round(TheR*255.0f);
+        int g = round(TheG*255.0f);
+        int b = round(TheB*255.0f);
+        printf("#%02X%02X%02X\n", r, g, b);
+    }
     fflush(stdout);
     [super close];
 }
