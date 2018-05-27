@@ -4,6 +4,8 @@
 
 const wchar_t WND_CLASS_NAME[] = L"WINDOW_CLASS_FOR_COLOR_PICKER";
 
+bool SHOULD_I_SKIP_PRINT_CAPTURED_COLOR = false;
+
 HWND HWND_UI;
 
 HWND HWND_MAGNIFIER_HOST;
@@ -238,11 +240,14 @@ int main(int argc, char* argv[])
         ::DispatchMessage(&msg);
     }
 
-    printf("#%02X%02X%02X\n", \
-            CAPTURED_COLOR.GetR(),
-            CAPTURED_COLOR.GetG(),
-            CAPTURED_COLOR.GetB());
-    fflush(stdout);
+    if( SHOULD_I_SKIP_PRINT_CAPTURED_COLOR == false )
+    {
+        printf("#%02X%02X%02X\n", \
+                CAPTURED_COLOR.GetR(),
+                CAPTURED_COLOR.GetG(),
+                CAPTURED_COLOR.GetB());
+        fflush(stdout);
+    }
 
     ::ShowCursor(TRUE);
     return (int) msg.wParam;
@@ -386,9 +391,9 @@ void SnapshotBasedRefreshCallback()
 
     int mousePosX, mousePosY;
     Gdiplus::Bitmap* current_capture_bitmap = nullptr;
-    for (int idx = 0; idx < ALL_MONITOR_INFO_COUNT; ++idx)
+    for(int idx = 0; idx < ALL_MONITOR_INFO_COUNT; ++idx)
     {
-        if( PtInRect(&ALL_MONITOR_RECT_INFO[idx], mousePos) )
+        if( ::PtInRect(&ALL_MONITOR_RECT_INFO[idx], mousePos) )
         {
             current_capture_bitmap = ALL_MONITOR_CAPTURED_BITMAP[idx];
             const auto rect = ALL_MONITOR_RECT_INFO[idx];
@@ -457,6 +462,16 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     case WM_LBUTTONUP:
     case WM_RBUTTONUP:
         PostQuitMessage(0);
+    break;
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+    {
+        if(wParam == VK_ESCAPE)
+        {
+            SHOULD_I_SKIP_PRINT_CAPTURED_COLOR = true;
+            PostQuitMessage(0);
+        }
+    }
     break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
