@@ -13,6 +13,7 @@ CGFloat TheR, TheG, TheB;
     NSWindow* window;
     MouseEventHook hook;
 }
+
 - (id)init
 {
     if (self = [super init]) {
@@ -516,6 +517,7 @@ int main(int argc, const char * argv[]) {
     NSApplication * app = [NSApplication sharedApplication];
     [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
     app.delegate = [AppDelegate new];
+    [NSApp activateIgnoringOtherApps:YES];
     [app run];
     return 0;
 }
