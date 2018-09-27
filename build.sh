@@ -52,5 +52,5 @@ project_build()
 project_build
 
 # Sign
-codesign -s 'Developer ID Application: Yuanyi Zhang (YMUB8PUSZ5)' $DST_DIR/ColorPicker.app
+# codesign -s 'Developer ID Application: Yuanyi Zhang (YMUB8PUSZ5)' $DST_DIR/ColorPicker.app
 
