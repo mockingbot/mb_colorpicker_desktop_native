@@ -5,23 +5,23 @@ set PRJ_DIR=%cd%
 
 set DEFAULT_PATH=C:\Windows\system32;C:\Windows;
 
-@rem VS2017 Command Promot have need this
+@rem VS2019 Command Promot have need this
 set VSCMD_START_DIR=%PRJ_DIR%
-set VS2017_INSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community
+set VS2019_INSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community
 
-echo %VS2017_INSTALLDIR%
+echo %VS2019_INSTALLDIR%
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::                            The main function                               ::
 ::                                                                            ::
 call :CLEAN_ENV
-call "%VS2017_INSTALLDIR%\VC\Auxiliary\Build\vcvars64.bat"
+call "%VS2019_INSTALLDIR%\VC\Auxiliary\Build\vcvars64.bat"
 echo Build X64 Static MT
 set DST_DIR=%PRJ_DIR%\_dst\Windows\x64
 set BUILD_DIR=%PRJ_DIR%\_build\Windows\x64
 call :BUILD
 
 call :CLEAN_ENV
-call "%VS2017_INSTALLDIR%\VC\Auxiliary\Build\vcvars32.bat"
+call "%VS2019_INSTALLDIR%\VC\Auxiliary\Build\vcvars32.bat"
 echo Build X32 Static MT
 set DST_DIR=%PRJ_DIR%\_dst\Windows\x32
 set BUILD_DIR=%PRJ_DIR%\_build\Windows\x32
