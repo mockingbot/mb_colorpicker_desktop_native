@@ -482,6 +482,15 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 
 void DrawZoomedCanvas()
 {
+    LARGE_INTEGER StartingTime, EndingTime, ElapsedMicroseconds;
+    LARGE_INTEGER Frequency;
+
+    ::QueryPerformanceFrequency(&Frequency);
+    ::QueryPerformanceCounter(&StartingTime);
+
+    /**************************************************************************/
+    /***
+
     Gdiplus::Graphics graphics(HDC_FOR_UI_WND_CANVASE);
     Gdiplus::Bitmap bitmap(UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, &graphics);
 
@@ -528,7 +537,7 @@ void DrawZoomedCanvas()
     painter.DrawImage(BITMAP_MASK_CIRCLE, 0, 0, \
                         UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT);
 
-    /**************************************************************************/
+    // merge canvas to window
     HBITMAP hBitmap;
     bitmap.GetHBITMAP(Gdiplus::Color(), &hBitmap);
 
@@ -537,7 +546,6 @@ void DrawZoomedCanvas()
     POINT mousePos;
     ::GetCursorPos(&mousePos);
 
-    // POINT ptDest = {800, 400};
     POINT ptDest = { mousePos.x - UI_WINDOW_WIDTH/2, mousePos.y - UI_WINDOW_HEIGHT/2};
 
     POINT ptSrc = {0, 0};
@@ -558,5 +566,62 @@ void DrawZoomedCanvas()
 
     ::SelectObject(HDC_FOR_UI_WND_CANVASE, hPrevObj);
     ::DeleteObject(hBitmap);
+
+    ***/
+
+    ///
+
+    auto hBitmap = ::CreateCompatibleBitmap(
+        HDC_FOR_UI_WND_CANVASE, UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT);
+
+    if( hBitmap ==  NULL){
+        printf("CreateCompatibleBitmap Failed %d\n", ::GetLastError());
+    }
+
+    auto hDC_Canvase = CreateCompatibleDC (HDC_FOR_UI_WND_CANVASE);
+    if( hDC_Canvase == NULL){
+        printf("CreateCompatibleDC Failed %d\n", ::GetLastError());
+    }
+
+    RECT rect = {0, 0, UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT};
+    FillRect(hDC_Canvase, &rect, (HBRUSH) (COLOR_WINDOW+1));
+
+
+    auto hPrevObj = ::SelectObject(HDC_FOR_UI_WND_CANVASE, hBitmap);
+
+    POINT mousePos;
+    ::GetCursorPos(&mousePos);
+
+    POINT ptDest = { mousePos.x - UI_WINDOW_WIDTH/2, mousePos.y - UI_WINDOW_HEIGHT/2};
+
+    POINT ptSrc = {0, 0};
+    SIZE client = {UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT};
+    BLENDFUNCTION blend_func = {AC_SRC_OVER, 0, 0xFF, AC_SRC_ALPHA};
+
+    ::UpdateLayeredWindow(\
+                        HWND_UI,
+                        HDC_FOR_UI_WND,
+                        &ptDest,
+                        &client,
+                        HDC_FOR_UI_WND_CANVASE,
+                        &ptSrc,
+                        0,
+                        &blend_func,
+                        ULW_ALPHA
+                        );
+
+    ::SelectObject(HDC_FOR_UI_WND_CANVASE, hPrevObj);
+    ::DeleteObject(hBitmap);
+
+
+
+    /**************************************************************************/
+    ::QueryPerformanceCounter(&EndingTime);
+    ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+
+    ElapsedMicroseconds.QuadPart *= 1000000;
+    ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+
+    printf("TIME %lld\n", ElapsedMicroseconds.QuadPart);
 }
 
