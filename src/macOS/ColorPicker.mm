@@ -52,7 +52,7 @@ CGFloat TheR, TheG, TheB;
     wnd_rect.size.height = UI_WINDOW_HEIGHT;
 
     self = [super initWithContentRect: wnd_rect
-                  styleMask: NSBorderlessWindowMask
+                  styleMask: NSWindowStyleMaskBorderless
                   backing: NSBackingStoreBuffered
                   defer:NO
                   ];
