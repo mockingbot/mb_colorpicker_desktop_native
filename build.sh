@@ -1,4 +1,5 @@
 #! /usr/bin/env bash
+# set -o xtrace
 
 ################################################################################
 os_check()
@@ -28,13 +29,12 @@ project_build()
     mkdir -p $BUILD_DIR > /dev/null
 
     CL_FLAG='-DRELEASE -std=c++14 -mmacosx-version-min=10.11'
-    LINK_FLAG='-macosx_version_min 10.11 -arch x86_64'
-    LINK_LIBS='-lc++ -lSystem -framework Cocoa -framework AppKit'
+    LINK_LIBS='-lc++ -lSystem -framework Cocoa -framework AppKit -framework IOKit'
 
     RES_DIR=$PRJ_DIR/res
     SRC_DIR=$PRJ_DIR/src/$os_name
     APP_DIR=$DST_DIR/ColorPicker.app
-   
+
     pushd $BUILD_DIR > /dev/null
         cc -c $CL_FLAG $SRC_DIR/ColorPicker.mm
 
@@ -45,7 +45,7 @@ project_build()
         cp -f $RES_DIR/Mask@2+s.png $APP_DIR/Contents/Resources/Mask.png
 
         mkdir -p $APP_DIR/Contents/MacOS > /dev/null
-        ld $LINK_FLAG $LINK_LIBS *.o -o $APP_DIR/Contents/MacOS/ColorPicker
+        cc $CL_FLAG $LINK_LIBS *.o -o $APP_DIR/Contents/MacOS/ColorPicker
 
     popd > /dev/null
 }
