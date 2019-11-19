@@ -1,5 +1,8 @@
 #include "ColorPicker.hxx"
 
+extern unsigned char RES_Circle_Mask[];
+extern unsigned int RES_Circle_Mask_len;
+
 MainWindow* TheMainWindow = nullptr;
 
 CGFloat CAPTUREED_PIXEL_COLOR_R [CAPTURE_HEIGHT][CAPTURE_WIDTH];
@@ -145,28 +148,15 @@ CGColorSpace* current_color_space = nullptr;
 {
     self = [super init];
 
-    auto load_image = [](NSString* url)->CGImage*
+    mask_circle = []()
     {
-        auto image = [[NSImage alloc] initWithContentsOfFile: url];
-        auto repre = [[image representations] objectAtIndex:0];
-        auto pixel_width = [repre pixelsWide];
-        auto pixel_hight = [repre pixelsHigh];
+        auto data = CFDataCreate(kCFAllocatorDefault, \
+                            (uint8_t*)RES_Circle_Mask, RES_Circle_Mask_len);
 
-        [repre setSize: NSMakeSize(pixel_width, pixel_hight)];
-        [image setSize: NSMakeSize(pixel_width, pixel_hight)];
-
-        [image addRepresentation: repre];
-        [image removeRepresentation:[[image representations] objectAtIndex:0]];
-
-        auto context = [NSGraphicsContext currentContext];
-        auto imageCGRect = CGRectMake(0, 0, pixel_width, pixel_hight);
-        auto imageRect = NSRectFromCGRect(imageCGRect);
-
-        return [image CGImageForProposedRect:&imageRect context:context hints:nil];
-    };
-
-    mask_circle = load_image([[NSBundle mainBundle] pathForResource:@"Mask" \
-                                                    ofType:@"png"]);
+        return CGImageCreateWithPNGDataProvider( \
+                                CGDataProviderCreateWithCFData(data), \
+                                     NULL, false, kCGRenderingIntentDefault);
+    }();
 
     if( kCGErrorSuccess != CGGetActiveDisplayList(display_id_list_size, \
                                                   display_id_list, \
@@ -513,7 +503,10 @@ MouseEventHook::~MouseEventHook()
     CFRelease(mouse_event_tap);
 }
 
-int main(int argc, const char * argv[]) {
+
+int
+main(int argc, const char * argv[])
+{
     NSApplication * app = [NSApplication sharedApplication];
     [app setActivationPolicy:NSApplicationActivationPolicyAccessory];
     app.delegate = [AppDelegate new];

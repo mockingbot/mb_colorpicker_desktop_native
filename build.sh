@@ -32,20 +32,25 @@ project_build()
     LINK_LIBS='-lc++ -lSystem -framework Cocoa -framework AppKit -framework IOKit'
 
     RES_DIR=$PRJ_DIR/res
-    SRC_DIR=$PRJ_DIR/src/$os_name
-    APP_DIR=$DST_DIR/ColorPicker.app
+    SRC_DIR=$PRJ_DIR/src/macOS
 
     pushd $BUILD_DIR > /dev/null
+        cat $RES_DIR/Mask@2+s.png > RES_Circle_Mask
+        xxd -i RES_Circle_Mask > RES_Circle_Mask.cxx
+
+        cc -c $CL_FLAG RES_Circle_Mask.cxx
         cc -c $CL_FLAG $SRC_DIR/ColorPicker.mm
 
-        mkdir -p $APP_DIR/Contents > /dev/null
-        cp -f $SRC_DIR/Info.plist $APP_DIR/Contents
+        cc $CL_FLAG $LINK_LIBS *.o -o $DST_DIR/ColorPicker
 
-        mkdir -p $APP_DIR/Contents/Resources > /dev/null
-        cp -f $RES_DIR/Mask@2+s.png $APP_DIR/Contents/Resources/Mask.png
+        # mkdir -p $APP_DIR/Contents > /dev/null
+        # cp -f $SRC_DIR/Info.plist $APP_DIR/Contents
 
-        mkdir -p $APP_DIR/Contents/MacOS > /dev/null
-        cc $CL_FLAG $LINK_LIBS *.o -o $APP_DIR/Contents/MacOS/ColorPicker
+        # mkdir -p $APP_DIR/Contents/Resources > /dev/null
+        # cp -f $RES_DIR/Mask@2+s.png $APP_DIR/Contents/Resources/Mask.png
+        # cp -f $RES_DIR/Mask@2+s.png $APP_DIR/Contents/Resources/Mask.png
+
+        # mkdir -p $APP_DIR/Contents/MacOS > /dev/null
 
     popd > /dev/null
 }
