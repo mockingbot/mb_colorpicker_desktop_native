@@ -130,7 +130,7 @@ CGFloat TheR, TheG, TheB;
 
 CGImage* mask_circle;
 
-const uint32_t display_id_list_size = 16; // 16 display is enought
+const uint32_t display_id_list_size = 16; // 16 is enought
 
 CGDirectDisplayID display_id_list[display_id_list_size] = {};
 CGColorSpaceRef color_space_list[display_id_list_size] = {};
@@ -148,7 +148,8 @@ CGColorSpace* current_color_space = nullptr;
 {
     self = [super init];
 
-    mask_circle = []()
+    mask_circle = \
+    []()
     {
         auto data = CFDataCreate(kCFAllocatorDefault, \
                             (uint8_t*)RES_Circle_Mask, RES_Circle_Mask_len);
@@ -514,3 +515,4 @@ main(int argc, const char * argv[])
     [app run];
     return 0;
 }
+
