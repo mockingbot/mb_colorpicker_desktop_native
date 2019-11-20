@@ -1,7 +1,6 @@
 #include "ColorPicker.hxx"
+#include "../Predefined.hxx"
 
-extern unsigned char RES_Circle_Mask[];
-extern unsigned int RES_Circle_Mask_len;
 
 MainWindow* TheMainWindow = nullptr;
 
@@ -44,15 +43,15 @@ CGFloat TheR, TheG, TheB;
     {
         auto event = CGEventCreate(nullptr);
         mouse_pos = CGEventGetUnflippedLocation(event);
-        mouse_pos.x -= UI_WINDOW_WIDTH/2.0f;
-        mouse_pos.y -= UI_WINDOW_HEIGHT/2.0f;
+        mouse_pos.x -= UI_WINDOW_SIZE/2.0f;
+        mouse_pos.y -= UI_WINDOW_SIZE/2.0f;
         CFRelease(event);
     }
 
     CGRect wnd_rect;
     wnd_rect.origin = mouse_pos;
-    wnd_rect.size.width = UI_WINDOW_WIDTH;
-    wnd_rect.size.height = UI_WINDOW_HEIGHT;
+    wnd_rect.size.width = UI_WINDOW_SIZE;
+    wnd_rect.size.height = UI_WINDOW_SIZE;
 
     self = [super initWithContentRect: wnd_rect
                   styleMask: NSWindowStyleMaskBorderless
@@ -314,20 +313,20 @@ CGColorSpace* current_color_space = nullptr;
     ////////////////////////////////////////////////////////////////////////////
     auto color_space = CGColorSpaceCreateDeviceRGB();
     auto ctx = CGBitmapContextCreate(nullptr, \
-                 UI_WINDOW_WIDTH, UI_WINDOW_HEIGHT, 32, 0, color_space, \
+                 UI_WINDOW_SIZE, UI_WINDOW_SIZE, 32, 0, color_space, \
                  kCGImageAlphaPremultipliedLast|kCGBitmapFloatComponents);
 
     CGRect wnd_rect;
     wnd_rect.origin.x = 0;
     wnd_rect.origin.y = 0;
-    wnd_rect.size.width = UI_WINDOW_WIDTH;
-    wnd_rect.size.height = UI_WINDOW_HEIGHT;
+    wnd_rect.size.width = UI_WINDOW_SIZE;
+    wnd_rect.size.height = UI_WINDOW_SIZE;
 
     CGRect mask_bound;
     mask_bound.origin.x = 8 + 2;
     mask_bound.origin.y = 8 + 2;
-    mask_bound.size.width = UI_WINDOW_WIDTH - (8+2)*2;
-    mask_bound.size.height = UI_WINDOW_HEIGHT - (8+2)*2;
+    mask_bound.size.width = UI_WINDOW_SIZE - (8+2)*2;
+    mask_bound.size.height = UI_WINDOW_SIZE - (8+2)*2;
 
     CGContextSaveGState(ctx);
 
@@ -414,8 +413,8 @@ CGColorSpace* current_color_space = nullptr;
     CGRect wnd_rect;
     wnd_rect.origin.x = 0;
     wnd_rect.origin.y = 0;
-    wnd_rect.size.width = UI_WINDOW_WIDTH;
-    wnd_rect.size.height = UI_WINDOW_HEIGHT;
+    wnd_rect.size.width = UI_WINDOW_SIZE;
+    wnd_rect.size.height = UI_WINDOW_SIZE;
 
     // draw the zoomed image suround cursor
     CGContextDrawImage(ctx, wnd_rect, zoomed_image_surround_current_cursor);
@@ -435,8 +434,8 @@ MouseEventHook::Callback(CGEventTapProxy proxy, \
     }
     // relative to the lower-left corner of the main display.
     auto mouse_pos = CGEventGetUnflippedLocation(event);
-    mouse_pos.x -= UI_WINDOW_WIDTH/2.0f;
-    mouse_pos.y -= UI_WINDOW_HEIGHT/2.0f;
+    mouse_pos.x -= UI_WINDOW_SIZE/2.0f;
+    mouse_pos.y -= UI_WINDOW_SIZE/2.0f;
 
     switch(type)
     {
