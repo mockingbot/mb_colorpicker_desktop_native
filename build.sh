@@ -17,34 +17,35 @@ os_check()
 os_check
 
 pushd "$( dirname "${BASH_SOURCE[0]}" )" > /dev/null
-    PRJ_DIR=`pwd`
+    declare -rg PRJ_DIR=`pwd`
 popd > /dev/null
 
-DST_DIR=$PRJ_DIR/_dst/$os_name
-BUILD_DIR=$PRJ_DIR/_build/$os_name
+declare -rg DST_DIR=$PRJ_DIR/_dst/$os_name
+declare -rg BUILD_DIR=$PRJ_DIR/_build/$os_name
 
 project_build()
 {
     mkdir -p $DST_DIR > /dev/null
     mkdir -p $BUILD_DIR > /dev/null
 
-    CC_FLAGS='-DRELEASE -std=c++14 -mmacosx-version-min=10.11'
-    LINK_LIBS='-lc++ -framework Cocoa -framework AppKit -framework IOKit'
+    res_dir=$PRJ_DIR/res
+    src_dir=$PRJ_DIR/src/macOS
 
-    RES_DIR=$PRJ_DIR/res
-    SRC_DIR=$PRJ_DIR/src/macOS
+    cc_flags='-DOS_MACOS -DRELEASE -std=c++14 -mmacosx-version-min=10.11'
+    link_libs='-lc++ -framework Cocoa -framework AppKit -framework IOKit'
 
     pushd $BUILD_DIR > /dev/null
-        cat $RES_DIR/Mask@2+s.png > RES_Circle_Mask
+        cat $res_dir/Mask@2+s.png > RES_Circle_Mask
         xxd -i RES_Circle_Mask > RES_Circle_Mask.cxx
 
-        cc $CC_FLAGS RES_Circle_Mask.cxx $SRC_DIR/ColorPicker.mm \
-           $LINK_LIBS -o $DST_DIR/ColorPicker
+        cc $cc_flags RES_Circle_Mask.cxx $src_dir/ColorPicker.mm \
+           $link_libs -o $DST_DIR/ColorPicker
 
     popd > /dev/null
 }
 project_build
 
 # Sign
-# codesign -s 'Developer ID Application: Yuanyi Zhang (YMUB8PUSZ5)' $DST_DIR/ColorPicker.app
+# declare -r key_id='Developer ID Application: Yuanyi Zhang (YMUB8PUSZ5)'
+# codesign -s $key_id $DST_DIR/ColorPicker
 

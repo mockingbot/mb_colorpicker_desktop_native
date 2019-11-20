@@ -5,11 +5,12 @@ set PRJ_DIR=%cd%
 
 set DEFAULT_PATH=C:\Windows\system32;C:\Windows;
 
-@rem VS2019 Command Promot have need this
+@rem VS2019 Command Promot need this to stop annoying dir change
 set VSCMD_START_DIR=%PRJ_DIR%
+@rem VS2019 Command Promot need this to stop annoying telemetry
+set VSCMD_SKIP_SENDTELEMETRY=YES
 set VS2019_INSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community
 
-echo %VS2019_INSTALLDIR%
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::                            The main function                               ::
 ::                                                                            ::
@@ -32,7 +33,7 @@ goto :EOF
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-::                       The clean env function                               ::
+::                       The env clean function                               ::
 ::                                                                            ::
 :CLEAN_ENV
 
@@ -47,28 +48,27 @@ goto :EOF
 
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-::                          The build function                                ::
+::                          The real build function                           ::
 ::                                                                            ::
 :BUILD
 mkdir %DST_DIR% 2> nul
 mkdir %BUILD_DIR% 2> nul
 
-echo %CD%
+set res_dir=%PRJ_DIR%\res
+set src_dir=%PRJ_DIR%\src\Windows
 
-set SRC_DIR=%PRJ_DIR%\src\Windows
+set cc_flags=/nologo /DRELEASE /DUNICODE /DOS_WINDOWS /MT /EHsc /O2
+set link_libs=user32.lib gdi32.lib ole32.lib gdiplus.lib magnification.lib
 
-set RC_FLAG=/nologo /i%PRJ_DIR%\res
-set CL_FLAG=/nologo /DRELEASE /DUNICODE /MT /EHsc /Ox /c
-set LINK_FLAG=/NOLOGO user32.lib gdi32.lib ole32.lib
-set LINK_LIBS=gdiplus.lib magnification.lib
+pushd %BUILD_DIR% > nul
 
-pushd %BUILD_DIR%
+    type "%res_dir%\Mask@2.png" > RES_Circle_Mask
+    xxd -i RES_Circle_Mask > RES_Circle_Mask.cxx
 
-cl %CL_FLAG% %SRC_DIR%\ColorPicker.cxx
-rc %RC_FLAG% /foResource.res %SRC_DIR%\Resource.rc
-link %LINK_FLAG% %LINK_LIBS% *.res *.obj /OUT:%DST_DIR%\ColorPicker.exe
+    cl %cc_flags% RES_Circle_Mask.cxx %src_dir%\ColorPicker.cxx ^
+       %link_libs% /Fe:%DST_DIR%\ColorPicker
 
-popd
+popd > nul
 
 goto :EOF
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
