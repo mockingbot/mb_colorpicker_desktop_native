@@ -24,6 +24,7 @@
 
 @end
 
+// CGImageRef image_caputured;
 
 @implementation MainWindow
 {
@@ -458,9 +459,11 @@ RefreshOffScreenRenderPixelWithinBound
         const auto src_bytes_per_row = ::CGImageGetBytesPerRow(image);
         const auto src_colorspace = ::CGImageGetColorSpace(image);
 
-        //# TODO: fix using sizeof(float)
-        const auto tmp_bytes_per_component = sizeof(float);
-        const auto tmp_bytes_per_pixel = sizeof(struct OffScreenRenderPixel);
+        const auto tmp_bytes_per_component = \
+                    OffScreenRenderPixel::BitsPerChannel()/8;
+        const auto tmp_bytes_per_pixel =
+                    OffScreenRenderPixel::BitsAllChannel()/8;
+
         const auto tmp_bytes_per_row = src_width*tmp_bytes_per_pixel;
         const auto tmp_data_len = tmp_bytes_per_row*src_height;
         const auto tmp_data_buf = std::make_unique<uint8_t[]>(tmp_data_len);
@@ -560,10 +563,8 @@ RefreshOffScreenRenderPixelWithinBound
                 uint8_t b_d = sRGB_data_cursor[y*src_width+x].b*255.0;
                 uint8_t a_d = sRGB_data_cursor[y*src_width+x].a*255.0;
 
-                // printf("%.5f %.5f %.5f %.5f -> %.5f %.5f %.5f %.5f\n", \
-                //     dst_r, dst_g, dst_b, dst_a, sRGB_r, sRGB_g, sRGB_b, sRGB_a);
-                // fprintf(stderr, "%3u %3u %3u %3u -> %3u %3u %3u %3u \n", \
-                //                     r_t, g_t, b_t, a_t, r_d, g_d, b_d, a_d);
+                fprintf(stderr, "%3u %3u %3u %3u -> %3u %3u %3u %3u \n", \
+                                    r_t, g_t, b_t, a_t, r_d, g_d, b_d, a_d);
             }
         }
     };

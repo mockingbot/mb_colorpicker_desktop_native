@@ -43,7 +43,20 @@ typedef std::vector<CGWindowID> WindowIDList;
 struct OffScreenRenderPixel
 {
     float r = 0, g = 0, b = 0, a = 0;
+
+    static constexpr auto BitsPerChannel()
+    {
+        return sizeof(struct OffScreenRenderPixel)*8/4;
+    }
+
+    static constexpr auto BitsAllChannel()
+    {
+        return sizeof(struct OffScreenRenderPixel)*8;
+    }
 };
+
+static_assert( OffScreenRenderPixel::BitsPerChannel() == sizeof(float)*8 );
+static_assert( OffScreenRenderPixel::BitsAllChannel() == sizeof(float)*8*4 );
 
 bool
 RefreshOffScreenRenderPixelWithinBound
@@ -58,11 +71,11 @@ struct MonitorInfo
 {
     static const uint32_t LIST_SIZE = 16; //!! 16 is enought
 
-    inline static const auto ID_LIST = new UInt32[LIST_SIZE]();
-    inline static const auto BOUND_LIST = new CGRect[LIST_SIZE]();
-    inline static const auto COLOR_SPACE_LIST = new CGColorSpaceRef[LIST_SIZE]();
-    inline static const auto NS_COLOR_SPACE_LIST_PIN = new NSColorSpace*[LIST_SIZE]();
-    inline static const auto NS_COLOR_SPACE_LIST = new NSColorSpace*[LIST_SIZE]();
+    inline static auto ID_LIST = new UInt32[LIST_SIZE]();
+    inline static auto BOUND_LIST = new CGRect[LIST_SIZE]();
+    inline static auto COLOR_SPACE_LIST = new CGColorSpaceRef[LIST_SIZE]();
+    inline static auto NS_COLOR_SPACE_LIST_PIN = new NSColorSpace*[LIST_SIZE]();
+    inline static auto NS_COLOR_SPACE_LIST = new NSColorSpace*[LIST_SIZE]();
 
     inline static uint32_t AVAILABLE_COUNT = 0;
 
@@ -70,9 +83,7 @@ struct MonitorInfo
     {
         Initializer();
         ~Initializer();
-    };
-    // Initialized;
-
+    } Initialized;
 
     auto ID(const uint32_t idx) { return ID_LIST[idx]; }
     auto Bound(const uint32_t idx) { return BOUND_LIST[idx]; }
@@ -140,9 +151,10 @@ MonitorInfo::Initializer::~Initializer()
     for(uint32_t idx=0; idx < AVAILABLE_COUNT; ++idx)
     {
         //!! When these two values are equal, it means the two NSColorSpace
-        //!! objects are new createad, NOT the system cached, so we need to
-        //!! free them, and this dealloc() must only call once as they are
-        //!! just point to the same object.
+        //!! objects are both newly created, NOT the system cached ones, so
+        //!! we need to free them. Since they are just referring to the same
+        //!! object, therefore this dealloc() will and must get called only
+        //!! once
         if( NS_COLOR_SPACE_LIST[idx] == NS_COLOR_SPACE_LIST_PIN[idx] )
         {
             [NS_COLOR_SPACE_LIST_PIN[idx] dealloc];
