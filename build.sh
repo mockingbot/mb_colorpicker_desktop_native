@@ -29,17 +29,21 @@ project_build()
     mkdir -p $BUILD_DIR > /dev/null
 
     res_dir=$PRJ_DIR/res
-    src_dir=$PRJ_DIR/src/macOS
+    src_dir=$PRJ_DIR/src
 
-    cc_flags='-DOS_MACOS -DRELEASE -std=c++14 -mmacosx-version-min=10.11'
-    link_libs='-lc++ -framework Cocoa -framework AppKit -framework IOKit'
+    cc_flags+=' -DOS_MACOS -DRELEASE -std=c++17 -mmacosx-version-min=10.11'
+
+    link_libs+='-lc++ -framework AppKit -framework IOKit'
 
     pushd $BUILD_DIR > /dev/null
+
         cat $res_dir/Mask@2+s.png > RES_Circle_Mask
         xxd -i RES_Circle_Mask > RES_Circle_Mask.cxx
+        cc $cc_flags -c RES_Circle_Mask.cxx -o Resource.o
 
-        cc $cc_flags RES_Circle_Mask.cxx $src_dir/ColorPicker.mm \
-           $link_libs -o $DST_DIR/ColorPicker
+        cc $cc_flags -c -ObjC++ $src_dir/Instance.cxx -o Instance.o
+        cc $cc_flags -c -ObjC++ $src_dir/macOS/ColorPicker.cxx -o ColorPicker.o
+        cc $cc_flags $link_libs *.o  -o $DST_DIR/ColorPicker
 
     popd > /dev/null
 }
