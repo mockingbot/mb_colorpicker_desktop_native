@@ -58,7 +58,6 @@
     wnd_rect.size.height = UI_WINDOW_SIZE;
 
     self = [super initWithContentRect: wnd_rect
-                  // styleMask: NSWindowStyleMaskTitled|NSWindowStyleMaskClosable
                   styleMask: NSBorderlessWindowMask
                   backing: NSBackingStoreBuffered
                   defer: NO];
@@ -630,7 +629,8 @@ PreRun(class Instance* instance)
             PreRun_Mode_Normal(instance);
         break;
         case 1:
-            while(true){
+            // while(true)
+            {
                 PreRun_Mode_Check(instance);
             }
         break;
