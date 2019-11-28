@@ -616,24 +616,35 @@ PreRun_Mode_Check(class Instance* instance)
     delete[] off_screen_render_data;
 }
 
-
 void
 PreRun(class Instance* instance)
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
-    auto mode = instance->InstanceInfo()->CommandLineParameter<int>("--mode=");
-    switch(mode)
+    auto inst_info = instance->InstanceInfo();
+    auto exec_mode = inst_info->CommandLineParameter<int>("--mode=");
+    auto exec_time = inst_info->CommandLineParameter<int>("--time=");
+
+    switch(exec_mode)
     {
         case 0:
             PreRun_Mode_Normal(instance);
         break;
         case 1:
-            // while(true)
+        {
+            while(exec_time--)
             {
                 PreRun_Mode_Check(instance);
             }
+        }
         break;
+        case 2:
+        {
+            while(exec_time--)
+            {
+                struct MonitorInfo::Initializer init;
+            }
+        }
         default:
             // pass
         break;
