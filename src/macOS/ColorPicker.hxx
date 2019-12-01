@@ -13,10 +13,9 @@
 @interface MainWindow : NSWindow
 
 -(id) init;
--(void) onRefreshTimerTick: (NSTimer*)timer;
--(void) keyDown: (NSEvent*)event;
 -(BOOL) canBecomeMainWindow;
 -(BOOL) canBecomeKeyWindow;
+-(void) keyDown: (NSEvent*)event;
 
 @end
 
@@ -24,7 +23,7 @@
 @interface MainView : NSView
 
 -(id) init;
--(void) drawRect: (NSRect)dirt_rect;
+-(void) drawRect: (NSRect)dirtRect;
 -(void) mouseDown: (NSEvent*)event;
 
 @end
@@ -40,31 +39,31 @@ typedef CGWindowID WindowID ;
 typedef std::vector<CGWindowID> WindowIDList;
 
 //! always using this format: (r, g, b, x) = (float, float, float, float)
-struct OffScreenRenderPixel
+struct ScreenPixelData
 {
     float r = 0, g = 0, b = 0, a = 0;
 
     static constexpr auto BitsPerChannel()
     {
-        return sizeof(struct OffScreenRenderPixel)*8/4;
+        return sizeof(struct ScreenPixelData)*8/4;
     }
 
     static constexpr auto BitsAllChannel()
     {
-        return sizeof(struct OffScreenRenderPixel)*8;
+        return sizeof(struct ScreenPixelData)*8;
     }
 };
 
-static_assert( OffScreenRenderPixel::BitsPerChannel() == sizeof(float)*8 );
-static_assert( OffScreenRenderPixel::BitsAllChannel() == sizeof(float)*8*4 );
+static_assert( ScreenPixelData::BitsPerChannel() == sizeof(float)*8 );
+static_assert( ScreenPixelData::BitsAllChannel() == sizeof(float)*8*4 );
 
 bool
-RefreshOffScreenRenderPixelWithinBound
+RefreshScreenPixelDataWithinBound
 (
     float central_x, float central_y,
     float bound_width, float bound_height,
     const WindowIDList& excluded_window_list,
-    struct OffScreenRenderPixel* const off_screen_render_data
+    struct ScreenPixelData* const off_screen_render_data
 );
 
 struct MonitorInfo
@@ -124,24 +123,25 @@ MonitorInfo::Initializer::Initializer()
         // fprintf(stderr, "--%p--\n", NS_COLOR_SPACE_LIST_PIN[idx]);
         // fprintf(stderr, "--%p--\n", NS_COLOR_SPACE_LIST[idx]);
 
-        auto ns_cs_name = [NS_COLOR_SPACE_LIST[idx] localizedName];
-        //!! DO NOT free this NSString, it seems a trick bug here !!//
-        //!! [ns_cs_name release];                                !!//
-        if( ns_cs_name != nil )
+        @autoreleasepool
         {
-            auto cs_name = (CFStringRef)ns_cs_name;
-            auto str_len = ::CFStringGetLength(cs_name);
-            auto max_str_len = 4 * str_len + 1;
-            auto cs_name_str = new char[max_str_len]();
-            ::CFStringGetCString(cs_name, cs_name_str, max_str_len, \
-                                                kCFStringEncodingUTF8);
-            fprintf(stderr, "colorspace: %s", cs_name_str);
-            delete[] cs_name_str;
-        }
-        else
-        {
-            fprintf(stderr, "colorspace: unknow");
-        }
+            auto ns_cs_name = [NS_COLOR_SPACE_LIST[idx] localizedName];
+            if( ns_cs_name != nil )
+            {
+                auto cs_name = (CFStringRef)ns_cs_name;
+                auto str_len = ::CFStringGetLength(cs_name);
+                auto max_str_len = 4 * str_len + 1;
+                auto cs_name_str = new char[max_str_len]();
+                ::CFStringGetCString(cs_name, cs_name_str, max_str_len, \
+                                                    kCFStringEncodingUTF8);
+                fprintf(stderr, "colorspace: %s", cs_name_str);
+                delete[] cs_name_str;
+            }
+            else
+            {
+                fprintf(stderr, "colorspace: unknow");
+            }
+        } // autoreleasepool
         fprintf(stderr, "\n");
     }
 }

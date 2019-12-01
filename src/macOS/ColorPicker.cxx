@@ -3,17 +3,44 @@
 #include "../Instance.hxx"
 #include "../Predefined.hxx"
 
+BOOL should_log_out_central_pixel_color = YES;
+ScreenPixelData* recorded_screen_render_data_buffer = nullptr;
+
 
 @implementation AppDelegate
 {
-    NSWindow* window;
+    NSWindow* main_window;
+    WindowIDList excluded_window_list;
+    NSTimer* fresh_timer;
 }
 
 -(id) init
 {
-    if (self = [super init]) {
-        window = [MainWindow new];
-    }
+    self = [super init];
+
+    // create the main window
+    main_window = [MainWindow new];
+
+    // cache excluded window list
+    const auto main_window_id = (WindowID)(uintptr_t)[main_window windowNumber];
+    excluded_window_list.push_back(main_window_id);
+    fprintf(stderr, "Main Window ID 0x%08X\n", main_window_id);
+
+    // alloc data buffer
+    const auto data_size = CAPTURE_WIDTH*CAPTURE_HEIGHT;
+    recorded_screen_render_data_buffer = new struct ScreenPixelData[data_size];
+
+    // set fresh timer
+    const auto fresh_time_interval = 1.0f/CURSOR_REFRESH_FREQUENCY;
+    fresh_timer = [NSTimer scheduledTimerWithTimeInterval: fresh_time_interval
+                          target: self
+                          selector: @selector(onRefreshTimerTick:)
+                          userInfo: nil
+                          repeats: YES];
+
+    [[NSRunLoop currentRunLoop] addTimer: fresh_timer
+                                forMode: NSDefaultRunLoopMode];
+
     return self;
 }
 
@@ -22,17 +49,41 @@
     return NO;
 }
 
+-(void) onRefreshTimerTick: (NSTimer*)timer;
+{
+    // fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+
+    float x = 0.f, y = 0.f;
+    GetCurrentCursorPosition(&x, &y);
+    // fprintf(stderr, "Current Cursor Position: %9.4f %9.4f\n", x, y);
+
+    static uint32_t record_screen_render_data_fresh_ratio_counter = 0;
+
+    if( record_screen_render_data_fresh_ratio_counter == 0 )
+    {
+        // update recoded data
+        RefreshScreenPixelDataWithinBound( \
+                x, y, CAPTURE_WIDTH, CAPTURE_HEIGHT, \
+                    excluded_window_list, recorded_screen_render_data_buffer );
+
+        // force redraw
+        [[main_window contentView] display];
+    }
+
+    record_screen_render_data_fresh_ratio_counter += 1;
+    record_screen_render_data_fresh_ratio_counter %= \
+        SCREEN_CAPTURE_FREQUENCY_TO_CURSOR_REFRESH_RATIO;
+
+    CGPoint mouse_pos;
+    mouse_pos.x = x - UI_WINDOW_SIZE/2.0f;
+    mouse_pos.y = y - UI_WINDOW_SIZE/2.0f;
+    [main_window setFrameOrigin: mouse_pos];
+}
+
 @end
 
-// CGImageRef image_caputured;
 
 @implementation MainWindow
-{
-    NSTimer* fresh_timer;
-    WindowIDList excluded_window_list;
-    struct OffScreenRenderPixel* off_screen_render_data;
-    uint32_t off_screen_render_data_fresh_ratio_count;
-}
 
 -(BOOL) canBecomeMainWindow
 {
@@ -65,8 +116,6 @@
 
     [self setBackgroundColor: [NSColor clearColor]];
     // [self setBackgroundColor: [NSColor redColor]];
-    // [self setBackgroundColor: [NSColor grayColor]];
-    // [self setBackgroundColor: [NSColor whiteColor]];
 
     [self setLevel: NSStatusWindowLevel];
     [self makeKeyAndOrderFront: nil];
@@ -74,57 +123,7 @@
     [self setOpaque: NO];
     [self setContentView: [MainView new]];
 
-    auto fresh_time_interval = 1.0f/CURSOR_REFRESH_FREQUENCY;
-
-    fresh_timer = [NSTimer scheduledTimerWithTimeInterval: fresh_time_interval
-                          target: self
-                          selector: @selector(onRefreshTimerTick:)
-                          userInfo: nil
-                          repeats: YES];
-
-    [[NSRunLoop currentRunLoop] addTimer: fresh_timer
-                                forMode: NSDefaultRunLoopMode];
-
-    auto main_window_id = (WindowID)(uintptr_t)self.windowNumber;
-    fprintf(stderr, "MainWindowID %u\n", main_window_id);
-    excluded_window_list.push_back(main_window_id);
-
-    auto data_size = CAPTURE_WIDTH*CAPTURE_HEIGHT;
-    off_screen_render_data = new struct OffScreenRenderPixel[data_size]();
-
-    off_screen_render_data_fresh_ratio_count = 0;
-
     return self;
-}
-
--(void) onRefreshTimerTick: (NSTimer*)timer;
-{
-    // fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-
-    float x = 0.f, y = 0.f;
-    GetCurrentCursorPosition(&x, &y);
-    // fprintf(stderr, "Current Cursor Position: %9.4f %9.4f\n", x, y);
-
-    if( off_screen_render_data_fresh_ratio_count == 0 )
-    {
-        RefreshOffScreenRenderPixelWithinBound( \
-                x, y, CAPTURE_WIDTH, CAPTURE_HEIGHT, \
-                    excluded_window_list, off_screen_render_data );
-
-        // refresh first!
-        // [[self contentView] ];
-        // force redraw
-        [[self contentView] display];
-    }
-
-    off_screen_render_data_fresh_ratio_count += 1;
-    off_screen_render_data_fresh_ratio_count %= \
-        SCREEN_CAPTURE_FREQUENCY_TO_CURSOR_REFRESH_RATIO;
-
-    CGPoint mouse_pos;
-    mouse_pos.x = x - UI_WINDOW_SIZE/2.0f;
-    mouse_pos.y = y - UI_WINDOW_SIZE/2.0f;
-    [self setFrameOrigin: mouse_pos];
 }
 
 -(void) keyDown: (NSEvent*)event
@@ -135,6 +134,7 @@
         case 0x35: // escape
         {
             // TODO:
+            should_log_out_central_pixel_color = NO;
             [self close];
         }
         break;
@@ -154,7 +154,6 @@
 -(void) close
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-    [fresh_timer invalidate];
     [super close];
     [NSApp stop: nil];
 }
@@ -164,13 +163,14 @@
 
 @implementation MainView
 {
-
     CGImageRef image_cicle_mask;
 }
 
-
 -(id) init
 {
+    self = [super init];
+
+    // load circle mask
     image_cicle_mask = [](auto data_buffer, auto data_buffer_size)
     {
         auto data_provide = ::CGDataProviderCreateWithData( \
@@ -181,28 +181,101 @@
 
     }((char*)RES_Circle_Mask, RES_Circle_Mask_len);
 
-    self = [super init];
     return self;
 }
 
--(void) drawRect: (NSRect)dirt_rect
+-(void) drawRect: (NSRect)dirtRect
 {
     // fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-    auto ctx = [[NSGraphicsContext currentContext] CGContext];
 
     CGRect wnd_rect;
     wnd_rect.origin.x = 0;
     wnd_rect.origin.y = 0;
-    wnd_rect.size.width = UI_WINDOW_SIZE;
+    wnd_rect.size.width  = UI_WINDOW_SIZE;
     wnd_rect.size.height = UI_WINDOW_SIZE;
 
+    CGRect mask_bound;
+    mask_bound.origin.x = 8 + 2;
+    mask_bound.origin.y = 8 + 2;
+    mask_bound.size.width = UI_WINDOW_SIZE - (8+2)*2;
+    mask_bound.size.height = UI_WINDOW_SIZE - (8+2)*2;
+
+    auto ctx = [[NSGraphicsContext currentContext] CGContext];
+
+    // clip circle
+    CGContextSaveGState(ctx);
+
+      auto clip_path = CGPathCreateWithEllipseInRect(mask_bound, nil);
+      CGContextAddPath(ctx, clip_path);
+      CGContextClip(ctx);
+      CGContextSetLineWidth(ctx, 1.0f);
+      CGContextSetShouldAntialias(ctx, NO);
+
+
+      // draw background for grid
+      auto grid_color = CGColorCreateGenericRGB(0.72f, 0.72f, 0.72f, 0.98f);
+      CGContextSetFillColorWithColor(ctx, grid_color);
+      CGContextFillRect(ctx, wnd_rect);
+      CFRelease(grid_color);
+
+      // draw every pixels
+      for(int y = 0; y < CAPTURE_HEIGHT; ++y)
+      {
+        for(int x = 0; x < CAPTURE_WIDTH; ++x)
+        {
+          auto pixel = recorded_screen_render_data_buffer[
+                               (CAPTURE_HEIGHT-1-y)*CAPTURE_WIDTH + x];
+
+          CGContextSetRGBFillColor(ctx, pixel.r, pixel.g, pixel.b, 1.0);
+
+          CGRect rect;
+          // 8 for boarder shadow, 1 for box boarder
+          rect.origin.x = 8 + 1 + (1+GRID_PIXEL)*x;
+          rect.origin.y = 8 + 1 + (1+GRID_PIXEL)*y;
+          rect.size.width  = GRID_PIXEL;
+          rect.size.height = GRID_PIXEL;
+          CGContextFillRect(ctx, rect);
+        }
+      }
+
+      // draw black and white box around the center pixel color
+      {
+        int x = GRID_NUMUBER_L;
+        int y = GRID_NUMUBER_L;
+        CGRect rect;
+        rect.origin.x = 8 + 1 + (1+GRID_PIXEL)*x - 1;
+        rect.origin.y = 8 + 1 + (1+GRID_PIXEL)*y - 1;
+        rect.size.width = GRID_PIXEL + 2;
+        rect.size.height = GRID_PIXEL + 2;
+
+        CGContextSetRGBFillColor(ctx, 0.0f, 0.0f, 0.0f, 1.0f);
+        CGContextFillRect(ctx, rect);
+
+        rect.origin.x = 8 + 1 + (1+GRID_PIXEL)*x;
+        rect.origin.y = 8 + 1 + (1+GRID_PIXEL)*y;
+        rect.size.width = GRID_PIXEL;
+        rect.size.height = GRID_PIXEL;
+
+        CGContextSetRGBFillColor(ctx, 1.0f, 1.0f, 1.0f, 1.0f);
+        CGContextFillRect(ctx, rect);
+
+        rect.origin.x = 8 + 1 + (1+GRID_PIXEL)*x + 1;
+        rect.origin.y = 8 + 1 + (1+GRID_PIXEL)*y + 1;
+        rect.size.width = GRID_PIXEL - 2;
+        rect.size.height = GRID_PIXEL - 2;
+
+        auto pixel = recorded_screen_render_data_buffer[
+                               (CAPTURE_HEIGHT-1-y)*CAPTURE_WIDTH + x];
+
+        CGContextSetRGBFillColor(ctx, pixel.r, pixel.g, pixel.b, 1.0);
+        CGContextFillRect(ctx, rect);
+      }
+
+      CFRelease(clip_path);
+
+    CGContextRestoreGState(ctx);
+
     CGContextDrawImage(ctx, wnd_rect, image_cicle_mask);
-
-    wnd_rect.size.width = CAPTURE_WIDTH;
-    wnd_rect.size.height = CAPTURE_HEIGHT;
-
-    // CGContextDrawImage(ctx, wnd_rect, image_caputured);
-    // CGContextDrawImage(ctx, wnd_rect, patched_image);
 }
 
 -(void) mouseDown: (NSEvent*)event
@@ -233,12 +306,12 @@ GetCurrentCursorPosition
 
 
 bool
-RefreshOffScreenRenderPixelWithinBound
+RefreshScreenPixelDataWithinBound
 (
     float central_x, float central_y,
     float bound_width, float bound_height,
     const WindowIDList& excluded_window_list,
-    struct OffScreenRenderPixel* const off_screen_render_data
+    struct ScreenPixelData* const off_screen_render_data
 )
 {
     struct cf_object_releaser
@@ -248,6 +321,15 @@ RefreshOffScreenRenderPixelWithinBound
         cf_object_releaser(CFTypeRef w): who(w) {}
     public:
         ~cf_object_releaser() { ::CFRelease(who); }
+    };
+
+    struct ns_object_releaser
+    {
+        NSObject* who;
+    public:
+        ns_object_releaser(NSObject* w): who(w) {}
+    public:
+        ~ns_object_releaser() { [who dealloc] ; }
     };
 
     auto window_list = \
@@ -313,260 +395,60 @@ RefreshOffScreenRenderPixelWithinBound
         return false; // return early
     }
 
-    /*! cache this !*/ static const auto bitmap_info = \
-    [](auto image)
-    {
-        auto bitmap_info = ::CGImageGetBitmapInfo(image);
-        if( bitmap_info & kCGBitmapFloatComponents )
-        {
-            fprintf(stderr, "is kCGBitmapFloatComponents\n");
-        }
-        else
-        {
-            fprintf(stderr, "not kCGBitmapFloatComponents\n");
-        }
-
-        switch( bitmap_info & kCGBitmapByteOrderMask )
-        {
-            case kCGBitmapByteOrderDefault:
-                fprintf(stderr, "is kCGBitmapByteOrderDefault\n");
-            break;
-            case kCGBitmapByteOrder16Little:
-                fprintf(stderr, "is kCGBitmapByteOrder16Little\n");
-            break;
-            case kCGBitmapByteOrder32Little:
-                fprintf(stderr, "is kCGBitmapByteOrder32Little\n");
-            break;
-            case kCGBitmapByteOrder16Big:
-                fprintf(stderr, "is kCGBitmapByteOrder16Big\n");
-            break;
-            case kCGBitmapByteOrder32Big:
-                fprintf(stderr, "is kCGBitmapByteOrder32Big\n");
-            break;
-            // ??????????? fucked !!
-            default:
-                fprintf(stderr, "?? kCGBitmapByteOrderMask Unknow\n");
-            break;
-        }
-
-        return bitmap_info;
-    }(image);
-
-    /*! cache this !*/ static const auto alpha_info = \
-    [](auto image)
-    {
-        auto alpha_info = ::CGImageGetAlphaInfo(image);
-        switch( alpha_info )
-        {
-            // For example, RGB.
-            case kCGImageAlphaNone:
-                fprintf(stderr, "is kCGImageAlphaNone\n");
-            break;
-            // For example, premultiplied RGBA
-            case kCGImageAlphaPremultipliedLast:
-                fprintf(stderr, "is kCGImageAlphaPremultipliedLast\n");
-            break;
-            // For example, premultiplied ARGB
-            case kCGImageAlphaPremultipliedFirst:
-                fprintf(stderr, "is kCGImageAlphaPremultipliedFirst\n");
-            break;
-            // For example, non-premultiplied RGBA
-            case kCGImageAlphaLast:
-                fprintf(stderr, "is kCGImageAlphaLast\n");
-            break;
-            // For example, non-premultiplied ARGB
-            case kCGImageAlphaFirst:
-                fprintf(stderr, "is kCGImageAlphaFirst\n");
-            break;
-            // For example, RBGX.
-            case kCGImageAlphaNoneSkipLast:
-                fprintf(stderr, "is kCGImageAlphaNoneSkipLast\n");
-            break;
-            // For example, XRGB.
-            case kCGImageAlphaNoneSkipFirst:
-                fprintf(stderr, "is kCGImageAlphaNoneSkipFirst\n");
-            break;
-            // No color data, alpha data only
-            case kCGImageAlphaOnly:
-                fprintf(stderr, "is kCGImageAlphaOnly\n");
-            break;
-            // ??????????? fucked !!
-            default:
-                fprintf(stderr, "is kCGImageAlphaInfo Unknow\n");
-            break;
-        }
-        return alpha_info;
-    }(image);
-
-    //* right now our compiler don't support unpack to static *//
-    // static const auto [bits_per_pixel, bits_per_component] = [](auto image)
-    /*! cache this !*/ static const auto bits_info = \
-    [](auto image)
-    {
-        const auto bpp = ::CGImageGetBitsPerPixel(image);
-        const auto bpc = ::CGImageGetBitsPerComponent(image);
-        fprintf(stderr, "is %lu bpp %lu bpc\n", bpp, bpc);
-        struct bits_info_t { size_t bpp; size_t bpc;};
-        return bits_info_t { .bpp = bpp, .bpc = bpc };
-    }(image);
-
-    /*! cache this !*/ static const auto image_raw_data_format_ok = \
-    [](auto bitmap_info, auto alpha_info, auto bits_info)
-    {
-        auto state = YES;
-        if( (bitmap_info&kCGBitmapByteOrderMask) != kCGBitmapByteOrder32Little)
-        {
-            fprintf(stderr, "captured image bytes order error\n");
-            state = NO;
-        }
-        if( (bitmap_info&kCGBitmapFloatInfoMask) == kCGBitmapFloatComponents )
-        {
-            fprintf(stderr, "captured image bytes type error\n");
-            state = NO;
-        }
-        if( ((alpha_info) != kCGImageAlphaPremultipliedFirst ) )
-        {
-            fprintf(stderr, "captured image alpha info error\n");
-            state = NO;
-        }
-        if( (bits_info.bpp != 32) || (bits_info.bpc != 8 ) )
-        {
-            fprintf(stderr, "captured image bpp/bpc error\n");
-            state = NO;
-        }
-        return state;
-    }(bitmap_info, alpha_info, bits_info);
-
-    if( image_raw_data_format_ok != YES )
-    {
-        return false; // return early
-    }
-
     auto calculate_then_flush_result_to_the_buffer = \
     [](auto image, auto off_screen_render_data)
     {
         const auto src_width = ::CGImageGetWidth(image);
         const auto src_height = ::CGImageGetHeight(image);
-
-        const auto src_data_provider = ::CGImageGetDataProvider(image);
-        const auto src_data = ::CGDataProviderCopyData(src_data_provider);
-        const auto src_data_len = ::CFDataGetLength(src_data);
-        const auto src_data_buf = std::make_unique<uint8_t[]>(src_data_len);
-        ::CFDataGetBytes(src_data, ::CFRangeMake(0, src_data_len), \
-                                                    src_data_buf.get());
-        struct cf_object_releaser src_data_releaser(src_data);
-
-        const auto src_bytes_per_row = ::CGImageGetBytesPerRow(image);
         const auto src_colorspace = ::CGImageGetColorSpace(image);
 
-        const auto tmp_bytes_per_component = \
-                    OffScreenRenderPixel::BitsPerChannel()/8;
-        const auto tmp_bytes_per_pixel =
-                    OffScreenRenderPixel::BitsAllChannel()/8;
+        auto ns_image = [[NSBitmapImageRep alloc] initWithCGImage: image];
+        struct ns_object_releaser ns_image_releaser(ns_image);
 
-        const auto tmp_bytes_per_row = src_width*tmp_bytes_per_pixel;
-        const auto tmp_data_len = tmp_bytes_per_row*src_height;
-        const auto tmp_data_buf = std::make_unique<uint8_t[]>(tmp_data_len);
+        auto ns_cs_sRGB = [NSColorSpace sRGBColorSpace];
 
-        auto tmp_data_cursor = (struct OffScreenRenderPixel*)tmp_data_buf.get();
+        @autoreleasepool
+        {
+        auto ns_image_sRGB = [ns_image \
+                        bitmapImageRepByConvertingToColorSpace: ns_cs_sRGB
+                        renderingIntent: NSColorRenderingIntentDefault];
+
         for( size_t y = 0; y < src_height; ++y )
         {
             for( size_t x = 0; x < src_width; ++x )
             {
-                uint8_t b = src_data_buf[y*src_bytes_per_row+x*4+0];
-                uint8_t g = src_data_buf[y*src_bytes_per_row+x*4+1];
-                uint8_t r = src_data_buf[y*src_bytes_per_row+x*4+2];
-                uint8_t a = src_data_buf[y*src_bytes_per_row+x*4+3];
-                // printf("%3u %3u %3u %3u \n", r, g, b, a);
+                auto color = [ns_image colorAtX: x y: y];
 
-                tmp_data_cursor[y*src_width+x].b = b/255.0;
-                tmp_data_cursor[y*src_width+x].g = g/255.0;
-                tmp_data_cursor[y*src_width+x].r = r/255.0;
-                tmp_data_cursor[y*src_width+x].a = a/255.0;
+                CGFloat color_values[4] = {};
+                color_values[0] = [color redComponent  ];
+                color_values[1] = [color greenComponent];
+                color_values[2] = [color blueComponent ];
+                color_values[3] = [color alphaComponent];
+
+                auto cg_color = ::CGColorCreate(src_colorspace, color_values);
+                struct cf_object_releaser cg_color_releaser(cg_color);
+
+                auto fixed_color = [[NSColor colorWithCGColor: cg_color]
+                                         colorUsingColorSpace: ns_cs_sRGB];
+
+                auto& pixel = off_screen_render_data[y*src_width+x];
+                pixel.r = [fixed_color redComponent  ];
+                pixel.g = [fixed_color greenComponent];
+                pixel.b = [fixed_color blueComponent ];
+                pixel.a = [fixed_color alphaComponent];
             }
         }
+        }; // autoreleasepool
 
-        // dump
-        for( size_t y = 0; y < src_height; ++y )
-        {
-            for( size_t x = 0; x < src_width; ++x )
-            {
-                uint8_t b = src_data_buf[y*src_bytes_per_row+x*4+0];
-                uint8_t g = src_data_buf[y*src_bytes_per_row+x*4+1];
-                uint8_t r = src_data_buf[y*src_bytes_per_row+x*4+2];
-                uint8_t a = src_data_buf[y*src_bytes_per_row+x*4+3];
-
-                uint8_t b_t = tmp_data_cursor[y*src_width+x].b*255.0;
-                uint8_t g_t = tmp_data_cursor[y*src_width+x].g*255.0;
-                uint8_t r_t = tmp_data_cursor[y*src_width+x].r*255.0;
-                uint8_t a_t = tmp_data_cursor[y*src_width+x].a*255.0;
-
-                // fprintf(stderr, "%3u %3u %3u %3u -> %3u %3u %3u %3u \n",
-                //                            r, g, b, a, r_t, g_t, b_t, a_t);
-            }
-        }
-
-        static const auto tmp_bitmap_info = kCGBitmapFloatInfoMask |
-                                            kCGBitmapByteOrder32Little |
-                                            kCGImageAlphaPremultipliedLast |
-                                            0;
-
-        const auto tmp_data_provider = ::CGDataProviderCreateWithData( \
-                               NULL, tmp_data_buf.get(), tmp_data_len, NULL);
-        struct cf_object_releaser tmp_data_provider_releaser(tmp_data_provider);
-
-        const auto tmp_image = ::CGImageCreate( \
-                        src_width,                    // width
-                        src_height,                   // height
-                        8*tmp_bytes_per_component,    // bitsPerComponent
-                        8*tmp_bytes_per_pixel,        // bitsPerPixel
-                        tmp_bytes_per_row,            // bytesPerRow
-                        src_colorspace,               // colorspace
-                        tmp_bitmap_info,              // bitmapInfo
-                        tmp_data_provider,            // CGDataProvider
-                        NULL,                         // decode array
-                        NO,                           // shouldInterpolate
-                        kCGRenderingIntentDefault     // intent
-                    );
-        struct cf_object_releaser tmp_image_releaser(tmp_image);
-
-        static const auto colorspace_sRGB = \
-                        ::CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-
-        static const auto context = ::CGBitmapContextCreate( \
-                off_screen_render_data,     // data
-                src_width,                  // width
-                src_height,                 // height
-                8*tmp_bytes_per_component,  // bitsPerComponent
-                tmp_bytes_per_row,          // bytesPerRow
-                colorspace_sRGB,            // space
-                tmp_bitmap_info             // bitmapInfo
-              );
-
-        ::CGContextDrawImage(context, \
-                ::CGRectMake(0, 0, src_width, src_height), tmp_image);
-
-        // fprintf(stderr, "---------------------------------------------------\n");
-
-        auto sRGB_data_cursor = off_screen_render_data;
-        for( size_t y = 0; y < src_height; ++y )
-        {
-            for( size_t x = 0; x < src_width; ++x )
-            {
-                uint8_t r_t = tmp_data_cursor[y*src_width+x].r*255.0;
-                uint8_t g_t = tmp_data_cursor[y*src_width+x].g*255.0;
-                uint8_t b_t = tmp_data_cursor[y*src_width+x].b*255.0;
-                uint8_t a_t = tmp_data_cursor[y*src_width+x].a*255.0;
-
-                uint8_t r_d = sRGB_data_cursor[y*src_width+x].r*255.0;
-                uint8_t g_d = sRGB_data_cursor[y*src_width+x].g*255.0;
-                uint8_t b_d = sRGB_data_cursor[y*src_width+x].b*255.0;
-                uint8_t a_d = sRGB_data_cursor[y*src_width+x].a*255.0;
-
-                fprintf(stderr, "%3u %3u %3u %3u -> %3u %3u %3u %3u \n", \
-                                    r_t, g_t, b_t, a_t, r_d, g_d, b_d, a_d);
-            }
-        }
+        // for( size_t y = 0; y < src_height; ++y )
+        // {
+        //     for( size_t x = 0; x < src_width; ++x )
+        //     {
+        //         const float f = 255.0f;
+        //         auto& p = off_screen_render_data[y*src_width+x];
+        //         printf("%f %f %f %f \n", (p.r*f), (p.g*f), (p.b*f), (p.a*f) );
+        //     }
+        // }
     };
 
     calculate_then_flush_result_to_the_buffer(image, off_screen_render_data);
@@ -588,14 +470,34 @@ PreRun_Mode_Normal(class Instance* instance)
     [NSApp setActivationPolicy: NSApplicationActivationPolicyAccessory];
     [NSApp activateIgnoringOtherApps: YES];
     [NSApp setDelegate: [AppDelegate new]];
-    // [NSCursor hide];
+    [NSCursor hide];
 }
 
 void
 PostRun_Mode_Normal(class Instance* instance)
 {
-    // [NSCursor unhide];
+    fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+
+    int x = GRID_NUMUBER_L;
+    int y = GRID_NUMUBER_L;
+    auto pixel = recorded_screen_render_data_buffer[y*CAPTURE_WIDTH+x];
+
+    int r = pixel.r*255.0f;
+    int g = pixel.g*255.0f;
+    int b = pixel.b*255.0f;
+
+    if( should_log_out_central_pixel_color == YES )
+    {
+        fprintf(stdout, "#%02X%02X%02X\n", r, g, b);
+    }
+    else
+    {
+        fprintf(stderr, "#%02X%02X%02X\n", r, g, b);
+    }
+
+    [NSCursor unhide];
 }
+
 
 void
 PreRun_Mode_Check(class Instance* instance)
@@ -603,19 +505,21 @@ PreRun_Mode_Check(class Instance* instance)
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
     float central_x = 200, central_y = 200;
-    float bound_width = 100, bound_height = 100;
+    float bound_width = 4, bound_height = 4;
+    // float bound_width = 100, bound_height = 100;
 
     WindowIDList no_exclude_window_list;
 
     auto off_screen_render_data = new \
-                OffScreenRenderPixel[bound_width*bound_height];
+                ScreenPixelData[bound_width*bound_height];
 
-    RefreshOffScreenRenderPixelWithinBound( \
+    RefreshScreenPixelDataWithinBound( \
         central_x, central_y, bound_width, bound_height, \
                 no_exclude_window_list, off_screen_render_data );
 
     delete[] off_screen_render_data;
 }
+
 
 void
 PreRun(class Instance* instance)
@@ -652,10 +556,22 @@ PreRun(class Instance* instance)
     }
 }
 
-
 void
 PostRun(class Instance* instance)
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+
+    auto inst_info = instance->InstanceInfo();
+    auto exec_mode = inst_info->CommandLineParameter<int>("--mode=");
+
+    switch(exec_mode)
+    {
+        case 0:
+            PostRun_Mode_Normal(instance);
+        break;
+        default:
+            // pass
+        break;
+    }
 }
 

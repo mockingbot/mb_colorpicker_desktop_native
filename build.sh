@@ -32,7 +32,6 @@ project_build()
     src_dir=$PRJ_DIR/src
 
     cc_flags+=' -DOS_MACOS -DRELEASE -std=c++17 -mmacosx-version-min=10.11'
-
     link_libs+='-lc++ -framework AppKit -framework IOKit'
 
     pushd $BUILD_DIR > /dev/null
