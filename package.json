@@ -1,0 +1,9 @@
+{
+  "name": "ColorPicker",
+  "version": "1.0.0",
+  "description": "Test ColorPicker in Electron",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  }
+}

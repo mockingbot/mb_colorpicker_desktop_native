@@ -1,22 +1,197 @@
 <!DOCTYPE html>
-<html>
+<html lang="en-US">
 <head>
-	<title> test for colorpicker colorspace correctness </title>
-</head>
-<style type="text/css">
-	.colorbox {
-		min-width: 200px;
-		max-width: 200px;
-		min-height: 200px;
-		max-height: 200px;
-	}
+<title> test for colorpicker colorspace correctness </title>
+<style>
+
+* {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.colorbox {
+    min-width:  200px;
+    max-width:  200px;
+    min-height: 200px;
+    max-height: 200px;
+}
+#colorbox-container {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+#botton-container {
+    position: absolute;
+    top: 0%;
+    transform: translateX(200px);
+    width: calc(100% - 200px);
+    height: 100%;
+    /*background-color: gray;*/
+}
+#botton-container span {
+    width: calc(100% - 200px);
+    margin: 10px;
+    display: block;
+}
+
+.button {
+    box-shadow: inset 0px 1px 0px 0px #7a8eb9;
+    background: linear-gradient(to bottom, #637aad 5%, #5972a7 100%);
+    background-color: #637aad;
+    border: 1px solid #314179;
+    display: inline-block;
+    cursor: pointer;
+    color: #ffffff;
+    font-family: Arial;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 6px 12px;
+    text-decoration: none;
+}
+.button:hover {
+    background:linear-gradient(to bottom, #5972a7 5%, #637aad 100%);
+    background-color:#5972a7;
+}
+.button:active {
+    position:relative;
+    top:1px;
+}
+
 </style>
-<body>
-	<div class="colorbox" style="background-color: #FF0000;">
-	</div>
-	<div class="colorbox" style="background-color: #00FF00;">
-	</div>
-	<div class="colorbox" style="background-color: #0000FF;">
-	</div>
+<script>
+
+let os = require('os');
+let path = require('path');
+let electron = require('electron');
+let child_process = require('child_process');
+
+let app_path = electron.remote.app.getAppPath()
+switch( os.platform())
+{
+    case 'darwin':
+        colorpicker_relative_path = '_dst/macOS/ColorPicker'
+    break;
+    case 'win32':
+        colorpicker_relative_path = '_dst/Windows/' + os.arch() +'/ColorPicker.exe'
+    break;
+}
+
+function on_load()
+{
+    document.getElementById("os-version").innerText += os.type();
+    document.getElementById("colorpicker-exe-url").innerText +=
+                            app_path + '/'+ colorpicker_relative_path;
+
+    /**************************************************************************/
+    /*            using this to check if permission granted                   */
+    var check_permision_exec_callback =
+    (error, stdout, stderr) =>
+    {
+        if (error) {
+            console.log(error);
+            throw error;
+        }
+        console.log(stderr);
+        console.log(stdout);
+
+        var permission_granted = false;
+        // if granted, the stdout should include this line,
+        // of if not, the YES will be NO
+        if( stdout.includes('Sceen Record Permission Granted: YES') )
+        {
+            permission_granted = true;
+        }
+
+        if( permission_granted ) {
+            document.getElementById("screen-record-permission-status")
+                .innerText = "Permision Status: Granted";
+        } else {
+            document.getElementById("screen-record-permission-status")
+                .innerText = "Permision Status: Not Granted";
+        }
+    }
+    function check_permision()
+    {
+        child_process.execFile(colorpicker_relative_path, ['--mode=1'],
+                                            check_permision_exec_callback);
+    }
+    document.getElementById("button-check-permission")
+                .addEventListener("click", check_permision);
+    /*________________________________________________________________________*/
+
+    /**************************************************************************/
+    /*                using this to check if permission granted               */
+    var trigger_permission_check_window_exec_callback =
+    (error, stdout, stderr)=>
+    {
+        if (error) {
+            console.log(error);
+            throw error;
+        }
+    }
+    function trigger_permission_check_window()
+    {
+        child_process.execFile(colorpicker_relative_path, ['--mode=2'],
+                                trigger_permission_check_window_exec_callback);
+    }
+    document.getElementById("button-promote-permision-window")
+                .addEventListener("click", trigger_permission_check_window);
+
+
+    /**************************************************************************/
+    /*                   finnally we can run the colorpicker                 */
+    var run_colorpicker_exec_callback =
+    (error, stdout, stderr)=>
+    {
+        if (error) {
+            console.log(error);
+            throw error;
+        }
+        // stderr contained extral debug infomation
+        console.log(stderr)
+        // stdout is the picked color
+        console.log(stdout)
+    }
+    function run_colorpicker()
+    {
+        child_process.execFile(colorpicker_relative_path, [],
+                                run_colorpicker_exec_callback);
+    }
+    document.getElementById("button-run-colorpicker")
+                .addEventListener("click", run_colorpicker);
+
+    // after app loading, we need to check permision first
+    // this call will make macOS cache the colorpicker executable file,
+    // which makes the colorpicker have shorted start time
+    check_permision()
+}
+
+</script>
+</head>
+<body onload="on_load()">
+    <div id="colorbox-container">
+        <div class="colorbox" style="background-color: #FF0000;"> </div>
+        <div class="colorbox" style="background-color: #00FF00;"> </div>
+        <div class="colorbox" style="background-color: #0000FF;"> </div>
+    </div>
+
+    <div id="botton-container">
+         <span id="os-version">Run on: </span>
+         <span id="colorpicker-exe-url">ColorPicker Path: </span>
+         <span id="screen-record-permission-status">Permission Status: </span>
+         <span>
+            <button class="button" id="button-check-permission">
+                1st Step: Check Permission
+            </button>
+            <button class="button" id="button-promote-permision-window">
+                2nd Step: Trigger macOS Permission Check Window
+            </button>
+            <button class="button" id="button-run-colorpicker">
+                3rd Step: Start ColorPicker
+            </button>
+         </span>
+    </div>
 </body>
 </html>
+
