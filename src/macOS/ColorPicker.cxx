@@ -458,7 +458,7 @@ RefreshScreenPixelDataWithinBound
 
 
 void
-PreRun_Mode_Normal(class Instance* instance)
+PreRun_Mode_Normal()
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
     fprintf(stderr, "screen record size: %4u %4u\n", \
@@ -474,7 +474,7 @@ PreRun_Mode_Normal(class Instance* instance)
 }
 
 void
-PostRun_Mode_Normal(class Instance* instance)
+PostRun_Mode_Normal()
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
@@ -500,7 +500,33 @@ PostRun_Mode_Normal(class Instance* instance)
 
 
 void
-PreRun_Mode_Check(class Instance* instance)
+PreRun_Mode_CheckScreenRecordPermision()
+{
+    CheckScreenRecordPermision();
+}
+
+
+void
+PreRun_Mode_TiggerScreenRecordPermisionGrantWindow()
+{
+    float central_x = 100, central_y = 100;
+    float bound_width = 4, bound_height = 4;
+
+    WindowIDList no_exclude_window_list;
+
+    auto off_screen_render_data = new \
+            ScreenPixelData[bound_width*bound_height];
+
+    RefreshScreenPixelDataWithinBound( \
+        central_x, central_y, bound_width, bound_height, \
+                no_exclude_window_list, off_screen_render_data );
+
+    delete[] off_screen_render_data;
+}
+
+
+void
+PreRun_Mode_Unit_Test_1()
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
@@ -520,6 +546,13 @@ PreRun_Mode_Check(class Instance* instance)
     delete[] off_screen_render_data;
 }
 
+void
+PreRun_Mode_Unit_Test_2()
+{
+    fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+    struct MonitorInfo::Initializer init;
+}
+
 
 void
 PreRun(class Instance* instance)
@@ -528,33 +561,50 @@ PreRun(class Instance* instance)
 
     auto inst_info = instance->InstanceInfo();
     auto exec_mode = inst_info->CommandLineParameter<int>("--mode=");
-    auto exec_time = inst_info->CommandLineParameter<int>("--time=");
 
     switch(exec_mode)
     {
         case 0:
-            PreRun_Mode_Normal(instance);
+            PreRun_Mode_Normal();
         break;
         case 1:
+            PreRun_Mode_CheckScreenRecordPermision();
+        break;
+        case 2:
+            PreRun_Mode_TiggerScreenRecordPermisionGrantWindow();
+        break;
+        case 3:
         {
-            while(exec_time--)
+            auto exec_time = inst_info->CommandLineParameter<int>("--time=");
+            auto test_what = inst_info->CommandLineParameter<int>("--what=");
+
+            switch(test_what)
             {
-                PreRun_Mode_Check(instance);
+                case 1:
+                {
+                    while(exec_time--) {
+                        PreRun_Mode_Unit_Test_1();
+                    }
+                }
+                break;
+                case 2:{
+                    while(exec_time--) {
+                        PreRun_Mode_Unit_Test_2();
+                    }
+                }
+                break;
+                default:
+                    // pass
+                break;
             }
         }
         break;
-        case 2:
-        {
-            while(exec_time--)
-            {
-                struct MonitorInfo::Initializer init;
-            }
-        }
         default:
             // pass
         break;
     }
 }
+
 
 void
 PostRun(class Instance* instance)
@@ -567,7 +617,7 @@ PostRun(class Instance* instance)
     switch(exec_mode)
     {
         case 0:
-            PostRun_Mode_Normal(instance);
+            PostRun_Mode_Normal();
         break;
         default:
             // pass

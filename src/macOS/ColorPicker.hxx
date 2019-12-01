@@ -168,3 +168,89 @@ MonitorInfo::Initializer::~Initializer()
 
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 }
+
+
+BOOL
+CheckScreenRecordPermision()
+{
+    static BOOL permission_granted = YES;
+    static BOOL should_check_avilable = NO;
+
+    struct log_helper
+    {
+        ~log_helper()
+        {
+            if ( permission_granted == YES)
+            {
+                fprintf(stdout, "Sceen Record Permission Granted: %s\n", "YES");
+            }
+            else
+            {
+                fprintf(stdout, "Sceen Record Permission Granted: %s\n", "NO");
+            }
+        }
+    } log_helper;
+
+    if( @available(macOS 10.15, *) )
+    {
+        should_check_avilable = YES;
+        permission_granted = NO;
+    }
+    else
+    {
+        should_check_avilable = NO;
+        permission_granted = YES;
+    }
+
+    if( should_check_avilable == NO )
+    {
+        return YES; // allways return YES when not need to check
+    }
+
+    auto crt_app = [NSRunningApplication currentApplication];
+    auto crt_pid = [NSNumber numberWithInteger: [crt_app processIdentifier]];
+
+    auto wnd_list = ::CGWindowListCopyWindowInfo( \
+                            kCGWindowListOptionOnScreenOnly, kCGNullWindowID);
+
+    for(CFIndex idx = 0; idx < ::CFArrayGetCount(wnd_list); ++idx)
+    {
+        auto wnd_info = (CFDictionaryRef)::CFArrayGetValueAtIndex( \
+                                                            wnd_list, idx);
+        auto wnd_name = ::CFDictionaryGetValue(wnd_info, kCGWindowName);
+        auto wnd_pid = ::CFDictionaryGetValue(wnd_info, kCGWindowOwnerPID);
+
+        auto ns_wnd_name = (NSString*)wnd_name;
+        if( [(NSNumber*)wnd_pid isEqual: crt_pid] )
+        {
+            continue;
+        }
+
+        pid_t pid = [(NSNumber*)wnd_pid intValue];
+        auto wnd_app = [NSRunningApplication
+                            runningApplicationWithProcessIdentifier:pid];
+        if( wnd_app == nil )
+        {
+            continue;
+        }
+
+        auto wnd_exe_name = [[wnd_app executableURL] lastPathComponent];
+        if( wnd_name )
+        {
+            if( [wnd_exe_name isEqual:@"Dock" ] )
+            {
+                // skip
+            }
+            else
+            {
+                permission_granted = YES;
+                break;
+            }
+        }
+    }
+
+    ::CFRelease(wnd_list);
+
+    return permission_granted;
+}
+
