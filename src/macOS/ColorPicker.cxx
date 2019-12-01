@@ -507,7 +507,7 @@ PreRun_Mode_CheckScreenRecordPermision()
 
 
 void
-PreRun_Mode_TiggerScreenRecordPermisionGrantWindow()
+PreRun_Mode_PromoteScreenRecordPermisionGrantWindow()
 {
     float central_x = 100, central_y = 100;
     float bound_width = 4, bound_height = 4;
@@ -546,6 +546,7 @@ PreRun_Mode_Unit_Test_1()
     delete[] off_screen_render_data;
 }
 
+
 void
 PreRun_Mode_Unit_Test_2()
 {
@@ -571,7 +572,7 @@ PreRun(class Instance* instance)
             PreRun_Mode_CheckScreenRecordPermision();
         break;
         case 2:
-            PreRun_Mode_TiggerScreenRecordPermisionGrantWindow();
+            PreRun_Mode_PromoteScreenRecordPermisionGrantWindow();
         break;
         case 3:
         {
