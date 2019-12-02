@@ -152,6 +152,12 @@ function on_load()
         console.log(stderr)
         // stdout is the picked color
         console.log(stdout)
+
+        document.getElementById("picked-color-value")
+                .innerText = "Color: " + stdout
+
+        document.getElementById("picked-color-value")
+                .style.visibility = "visible";
     }
     function run_colorpicker()
     {
@@ -180,6 +186,8 @@ function on_load()
          <span id="os-version">Run on: </span>
          <span id="colorpicker-exe-url">ColorPicker Path: </span>
          <span id="screen-record-permission-status">Permission Status: </span>
+         <span id="picked-color-value" visibility="hidden"></span>
+
          <span>
             <button class="button" id="button-check-permission">
                 1st Step: Check Permission
