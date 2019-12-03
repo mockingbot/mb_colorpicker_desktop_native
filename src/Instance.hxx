@@ -8,6 +8,9 @@
 
 #include <forward_list>
 
+#ifdef _MSC_VER
+    #define __PRETTY_FUNCTION__ __FUNCTION__
+#endif // _MSC_VER
 
 class ResourceSink
 {
@@ -158,9 +161,9 @@ public:
 private:
     int run()
     {
-        if(fun_pre_run_) fun_pre_run_(instance_);
+        if( fun_pre_run_ ) fun_pre_run_(instance_);
         const int result = runtime_host_->Execute();
-        if(fun_post_run_) fun_post_run_(instance_);
+        if( fun_post_run_ ) fun_post_run_(instance_);
         return result;
     }
 public:

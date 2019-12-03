@@ -40,7 +40,7 @@ InstanceInfo::InstanceInfo()
     for( int idx = 0 ; idx < arguments_number ; ++idx )
     {
         native_str_view_t argument(arguments_buffer_list[idx]);
-        fwprintf(L"ARGV[%d]:%s\n", idx, argument.data());
+        fwprintf(stderr, L"ARGV[%d]:%s\n", idx, argument.data());
         //! Because CommandLineToArgvW actually alloc a continue memory block
         //! inside itself, and since we do not release this memory, so I just
         //! use std::move here.
