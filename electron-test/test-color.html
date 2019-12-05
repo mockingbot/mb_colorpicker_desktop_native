@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+
+<title>Electron Test</title>
+
+<style>
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #8884; }
+  ::-webkit-scrollbar-thumb { background: #8888; }
+  ::-webkit-scrollbar-thumb:hover { background: #888b; }
+
+  html, body { margin: 0; padding: 0; }
+  body { display: flex; flex-flow: row; width: 100vw; height: 100vh; font-family: monospace; }
+  pre { overflow: auto; }
+
+  button { box-shadow: inset 0 1px 0 0 #7a8eb9; background: #637aad; border: 1px solid #314179; display: inline-block; cursor: pointer; color: #fff; font-size: 13px; font-weight: bold; padding: 6px 12px; text-decoration: none; }
+  button:hover { background: #5972a7; }
+
+  .color-box { display: flex; flex-flow: column; width: 200px; }
+  .color-box div { flex: 1; }
+
+  .main { flex: 1; display: flex; flex-flow: column; overflow-y: auto; padding: 8px; }
+</style>
+
+<div class="color-box">
+  <div style="background: #f00;"></div>
+  <div style="background: #0f0;"></div>
+  <div style="background: #00f;"></div>
+</div>
+
+<div class="main">
+  <pre id="info"></pre>
+
+  <fieldset id="fieldset-darwin-permission">
+    <legend>Darwin Permission Test</legend>
+    <p id="result-darwin-permission">...</p>
+    <button id="button-get-darwin-permission-status">1st Step: Check Permission</button>
+    <button id="button-request-darwin-permission-popup">2nd Step: Trigger macOS Permission Check Window</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Pick Color Test</legend>
+    <p id="result-pick-color">...</p>
+    <button id="button-pick-color">Start ColorPicker</button>
+  </fieldset>
+</div>
+
+<script>
+const { // injected form preload.js
+  SYSTEM_INFO_STRING,
+  IS_DARWIN_PERMISSION_CHECK_REQUIRED,
+  EXEC_COLORPICKER_ASYNC
+} = window.PRELOAD
+
+window.qS = (selector) => document.querySelector(selector)
+window.pickColor = () => EXEC_COLORPICKER_ASYNC().then(({ stdout }) => {
+  qS('#result-pick-color').innerText = `Output Color: ${JSON.stringify(stdout)}`
+})
+window.getDarwinPermissionStatus = () => EXEC_COLORPICKER_ASYNC('--mode=1').then(({ stdout }) => {
+  const isGranted = stdout.includes('Sceen Record Permission Granted: YES') // if not, the YES will be NO
+  qS('#result-darwin-permission').innerText = `Permission Granted: ${isGranted ? 'YES' : 'NO'}`
+})
+window.requestDarwinPermissionPopup =  () => EXEC_COLORPICKER_ASYNC('--mode=2').then(() => {
+  console.log('[requestDarwinPermissionPopup] done')
+})
+
+qS('#info').innerText = SYSTEM_INFO_STRING
+
+qS('#button-pick-color').onclick = pickColor
+
+if (IS_DARWIN_PERMISSION_CHECK_REQUIRED) {
+  qS('#button-get-darwin-permission-status').onclick = getDarwinPermissionStatus
+  qS('#button-request-darwin-permission-popup').onclick = requestDarwinPermissionPopup
+
+  // after loading, we should check permission first
+  // this call will make macOS cache the colorpicker executable file,
+  // which makes the colorpicker have shorter start time
+  getDarwinPermissionStatus()
+} else qS('#fieldset-darwin-permission').remove()
+</script>

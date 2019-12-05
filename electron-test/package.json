@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "name": "test-color-picker",
+  "main": "main.js",
+  "scripts": {
+    "// install debug================": "",
+    "install-cn-mirror": "ELECTRON_MIRROR=\"https://npm.taobao.org/mirrors/electron/\" npm install",
+    "rebuild-with-log": "DEBUG=\"*\" npm rebuild electron",
+    "// =============================": "",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^7"
+  }
+}
