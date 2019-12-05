@@ -1,9 +1,11 @@
 {
-  "name": "ColorPicker",
-  "version": "1.0.0",
-  "description": "Test ColorPicker in Electron",
-  "main": "main.js",
+  "private": true,
   "scripts": {
-    "start": "electron ."
+    "// build =======================": "",
+    "build-win32": "build.bat",
+    "build-darwin": "build.sh",
+    "// =============================": "",
+    "electron-test-install": "cd ./electron-test/ && npm install",
+    "electron-test-start": "cd ./electron-test/ && npm start"
   }
 }

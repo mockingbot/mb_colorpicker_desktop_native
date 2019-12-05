@@ -1,3 +1,5 @@
+# editor
+.idea/
 
 # exclude tmp build dir
 _build/
@@ -10,3 +12,7 @@ _dst/
 
 # Windows
 Thumbs.db
+
+# npm
+node_modules/
+package-lock.json
