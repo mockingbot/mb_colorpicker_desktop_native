@@ -25,8 +25,8 @@ const EXEC_COLORPICKER_ASYNC = async (...args) => new Promise((resolve, reject) 
       console.error(`[Error|EXEC_COLORPICKER_ASYNC]`, error)
       return reject(error)
     }
-    stderr && console.warn(`[stderr|EXEC_COLORPICKER_ASYNC]`, JSON.stringify(stderr))
-    stdout && console.log(`[stdout|EXEC_COLORPICKER_ASYNC]`, JSON.stringify(stdout))
+    stderr && console.warn(`[stderr|EXEC_COLORPICKER_ASYNC]`, stderr)
+    stdout && console.log(`[stdout|EXEC_COLORPICKER_ASYNC]`, stdout)
     resolve({ stdout, stderr })
   }
 ))
