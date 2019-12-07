@@ -173,23 +173,8 @@ MonitorInfo::Initializer::~Initializer()
 BOOL
 CheckScreenRecordPermision()
 {
-    static BOOL permission_granted = YES;
-    static BOOL should_check_avilable = NO;
-
-    struct log_helper
-    {
-        ~log_helper()
-        {
-            if ( permission_granted == YES)
-            {
-                fprintf(stdout, "Sceen Record Permission Granted: %s\n", "YES");
-            }
-            else
-            {
-                fprintf(stdout, "Sceen Record Permission Granted: %s\n", "NO");
-            }
-        }
-    } log_helper;
+    BOOL permission_granted = YES;
+    BOOL should_check_avilable = NO;
 
     if( @available(macOS 10.15, *) )
     {

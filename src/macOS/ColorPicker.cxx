@@ -502,7 +502,26 @@ PostRun_Mode_Normal()
 void
 PreRun_Mode_CheckScreenRecordPermision()
 {
-    CheckScreenRecordPermision();
+    struct log_helper
+    {
+    public:
+      BOOL permission_granted = NO;
+    public:
+      ~log_helper()
+      {
+        if ( permission_granted == YES)
+        {
+          fprintf(stdout, "Screen Record Permission Granted: %s\n", "YES");
+        }
+        else
+        {
+          fprintf(stdout, "Screen Record Permission Granted: %s\n", "NO");
+        }
+      }
+    }
+    the_log_helper;
+
+    the_log_helper.permission_granted = CheckScreenRecordPermision();
 }
 
 
