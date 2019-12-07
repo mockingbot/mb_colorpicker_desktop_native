@@ -458,7 +458,10 @@ RefreshScreenPixelDataWithinBound
 
 
 void
-PreRun_Mode_Normal()
+PreRun_Mode_Normal
+(
+    const class InstanceInfo* const instance_info
+)
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
     fprintf(stderr, "screen record size: %4u %4u\n", \
@@ -474,7 +477,10 @@ PreRun_Mode_Normal()
 }
 
 void
-PostRun_Mode_Normal()
+PostRun_Mode_Normal
+(
+    const class InstanceInfo* const instance_info
+)
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
@@ -500,7 +506,10 @@ PostRun_Mode_Normal()
 
 
 void
-PreRun_Mode_CheckScreenRecordPermision()
+PreRun_Mode_CheckScreenRecordPermision
+(
+    const class InstanceInfo* const instance_info
+)
 {
     struct log_helper
     {
@@ -526,8 +535,16 @@ PreRun_Mode_CheckScreenRecordPermision()
 
 
 void
-PreRun_Mode_PromoteScreenRecordPermisionGrantWindow()
+PreRun_Mode_PromoteScreenRecordPermisionGrantWindow
+(
+    const class InstanceInfo* const instance_info
+)
 {
+    auto bundle_id = instance_info->\
+                    CommandLineParameter<std::string>("--bundle-id=");
+
+    fprintf(stderr, "->>%s<<-\n", bundle_id.c_str());
+
     float central_x = 100, central_y = 100;
     float bound_width = 4, bound_height = 4;
 
@@ -545,7 +562,10 @@ PreRun_Mode_PromoteScreenRecordPermisionGrantWindow()
 
 
 void
-PreRun_Mode_Unit_Test_1()
+PreRun_Mode_Unit_Test_1
+(
+    const class InstanceInfo* const instance_info
+)
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
@@ -567,7 +587,10 @@ PreRun_Mode_Unit_Test_1()
 
 
 void
-PreRun_Mode_Unit_Test_2()
+PreRun_Mode_Unit_Test_2
+(
+    const class InstanceInfo* const instance_info
+)
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
     struct MonitorInfo::Initializer init;
@@ -585,13 +608,13 @@ PreRun(class Instance* instance)
     switch(exec_mode)
     {
         case 0:
-            PreRun_Mode_Normal();
+            PreRun_Mode_Normal(inst_info);
         break;
         case 1:
-            PreRun_Mode_CheckScreenRecordPermision();
+            PreRun_Mode_CheckScreenRecordPermision(inst_info);
         break;
         case 2:
-            PreRun_Mode_PromoteScreenRecordPermisionGrantWindow();
+            PreRun_Mode_PromoteScreenRecordPermisionGrantWindow(inst_info);
         break;
         case 3:
         {
@@ -603,13 +626,13 @@ PreRun(class Instance* instance)
                 case 1:
                 {
                     while(exec_time--) {
-                        PreRun_Mode_Unit_Test_1();
+                        PreRun_Mode_Unit_Test_1(inst_info);
                     }
                 }
                 break;
                 case 2:{
                     while(exec_time--) {
-                        PreRun_Mode_Unit_Test_2();
+                        PreRun_Mode_Unit_Test_2(inst_info);
                     }
                 }
                 break;
@@ -637,7 +660,7 @@ PostRun(class Instance* instance)
     switch(exec_mode)
     {
         case 0:
-            PostRun_Mode_Normal();
+            PostRun_Mode_Normal(inst_info);
         break;
         default:
             // pass
