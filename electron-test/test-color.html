@@ -56,7 +56,7 @@ window.pickColor = () => EXEC_COLORPICKER_ASYNC().then(({ stdout }) => {
   qS('#result-pick-color').innerText = `Output Color: ${JSON.stringify(stdout)}`
 })
 window.getDarwinPermissionStatus = () => EXEC_COLORPICKER_ASYNC('--mode=1').then(({ stdout }) => {
-  const isGranted = stdout.includes('Sceen Record Permission Granted: YES') // if not, the YES will be NO
+  const isGranted = stdout.includes('Screen Record Permission Granted: YES') // if not, the YES will be NO
   qS('#result-darwin-permission').innerText = `Permission Granted: ${isGranted ? 'YES' : 'NO'}`
 })
 window.requestDarwinPermissionPopup =  () => EXEC_COLORPICKER_ASYNC('--mode=2').then(() => {
