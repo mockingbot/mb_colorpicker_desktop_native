@@ -39,7 +39,8 @@ An color picker for Win and Mac with pure native platform API
     
     由于 tccutil 在清除权限记录时需要指定目标程序的 bundle-id，因此调用此功能时一共需要二个命令行参数。
     以墨刀桌面版为例，这一程序的 bundle-id 为 com.MockingBot.MockingBotMAC，因此，这一功能模式完整的命令行参数为: `ColorPicker --mode=2 --bundle-id=com.MockingBot.MockingBotMAC`。
-
+    
+    这一模式下，stdout 输出随着 tccutil 执行结果的不同而不同。若 tccutil 成功清除了指定程序的权限记录，那么完整的输出信息为"`Promote Screen Record Permission Grant Window Succeeded: YES\n`"，反之为"`Promote Screen Record Permission Grant Window Succeeded: No\n`"。
 
 ### Windows平台辅助说明
 TODO：
