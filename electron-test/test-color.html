@@ -59,7 +59,7 @@ window.getDarwinPermissionStatus = () => EXEC_COLORPICKER_ASYNC('--mode=1').then
   const isGranted = stdout.includes('Screen Record Permission Granted: YES') // if not, the YES will be NO
   qS('#result-darwin-permission').innerText = `Permission Granted: ${isGranted ? 'YES' : 'NO'}`
 })
-window.requestDarwinPermissionPopup =  () => EXEC_COLORPICKER_ASYNC('--mode=2').then(() => {
+window.requestDarwinPermissionPopup =  () => EXEC_COLORPICKER_ASYNC('--mode=2', '--bundle-id=com.googlecode.iterm2').then(() => {
   console.log('[requestDarwinPermissionPopup] done')
 })
 
