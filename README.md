@@ -37,7 +37,7 @@ An color picker for Win and Mac with pure native platform API
 
     在这一功能的代码实现上，首先使用了系统内置 tccutil 命令清除相应程序的权限记录，随后是调用屏幕捕获API，如此一来，确保了权限选择窗口**一定可以弹出**。
     
-    由于 tccutil 在清除权限记录时需要指定目标程序的 bundle-id，故此，这一功能调用还需要第二个命令行参数`bundle-id=xxxx`。
+    由于 tccutil 在清除权限记录时需要指定目标程序的 bundle-id，因此调用这一功能时还需要第二个命令行参数`--bundle-id=xxxx`。
     
     以墨刀桌面版为例，这一程序的 bundle-id 为 com.MockingBot.MockingBotMAC，因此，这一功能模式完整的命令行参数为: `ColorPicker --mode=2 --bundle-id=com.MockingBot.MockingBotMAC`。
 
