@@ -33,10 +33,11 @@ An color picker for Win and Mac with pure native platform API
 
 * <strong>`触发权限选择窗口弹出`功能，命令行参数`--mode=2`：</strong>
 
-    除了上述权限检测的功能外，完整的权限处理流程还需配合本功能，用以触发macOS权限选择窗口的弹出，提升用户使用体验。
+    为提升用户使用体验，除了上述权限检测功能外，完整的权限处理流程还需配合本功能用以触发macOS权限选择窗口的弹出。
 
-    为确保**一定可以弹出**权限选择窗口，这一功能的代码实现分为了两个关键步骤，首先是使用系统内置 tccutil 命令清除相应程序的权限记录，然后是调用屏幕捕获API。经由这两个步骤后权限选择窗口**一定可以弹出**。
-    。故此，这一功能还需第二个命令行参数`--bundle-id=xxxx`。
+    在这一功能的代码实现上，首先使用了系统内置 tccutil 命令清除相应程序的权限记录，随后是调用屏幕捕获API，如此一来，确保了权限选择窗口**一定可以弹出**。
+    
+    由于 tccutil 在清除权限记录时需要指定目标程序的 bundle-id，故此，这一功能调用还需要第二个命令行参数`bundle-id=xxxx`。
     
     以墨刀桌面版为例，这一程序的 bundle-id 为 com.MockingBot.MockingBotMAC，因此，这一功能模式完整的命令行参数为: `ColorPicker --mode=2 --bundle-id=com.MockingBot.MockingBotMAC`。
 
