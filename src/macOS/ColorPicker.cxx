@@ -511,22 +511,20 @@ PreRun_Mode_CheckScreenRecordPermision
     const class InstanceInfo* const instance_info
 )
 {
-    struct log_helper
+    class log_helper
     {
+        const char* prefix = "Screen Record Permission Granted";
     public:
-      BOOL permission_granted = NO;
+        BOOL permission_granted = NO;
     public:
-      ~log_helper()
-      {
-        if ( permission_granted == YES)
+        ~log_helper()
         {
-          fprintf(stdout, "Screen Record Permission Granted: %s\n", "YES");
+            if( permission_granted == YES ) {
+                fprintf(stdout, "%s: %s\n", prefix, "YES");
+            } else {
+                fprintf(stdout, "%s: %s\n", prefix, "NO");
+            }
         }
-        else
-        {
-          fprintf(stdout, "Screen Record Permission Granted: %s\n", "NO");
-        }
-      }
     }
     the_log_helper;
 
@@ -540,10 +538,85 @@ PreRun_Mode_PromoteScreenRecordPermisionGrantWindow
     const class InstanceInfo* const instance_info
 )
 {
-    auto bundle_id = instance_info->\
+    class log_helper
+    {
+        const char* prefix = \
+            "Promote Screen Record Permission Grant Window Succeeded";
+    public:
+        BOOL action_successed = NO;
+    public:
+        ~log_helper()
+        {
+            if( action_successed == YES ) {
+                fprintf(stdout, "%s: %s\n", prefix, "YES");
+            } else {
+                fprintf(stdout, "%s: %s\n", prefix, "NO");
+            }
+        }
+    }
+    the_log_helper;
+
+    @autoreleasepool
+    {
+        auto bundle_id = instance_info->\
                     CommandLineParameter<std::string>("--bundle-id=");
 
-    fprintf(stderr, "->>%s<<-\n", bundle_id.c_str());
+        auto white_space = NSCharacterSet.whitespaceAndNewlineCharacterSet;
+
+        auto ns_bundle_id = \
+                [[[NSString alloc]
+                        initWithUTF8String: bundle_id.c_str()]
+                             stringByTrimmingCharactersInSet: white_space];
+
+        if( [ns_bundle_id length] == 0 )
+        {
+            return;
+        }
+
+        auto task = [NSTask new];
+        auto pipe_p2c_stdin  = [NSPipe new];
+        auto pipe_c2p_stdout = [NSPipe new];
+        auto pipe_c2p_stderr = [NSPipe new];
+        [task setStandardInput: pipe_p2c_stdin];
+        [task setStandardOutput: pipe_c2p_stdout];
+        [task setStandardError: pipe_c2p_stderr];
+
+
+
+        auto arguments = [[NSArray alloc] initWithObjects:
+                        @"reset", @"ScreenCapture", ns_bundle_id, nil];
+
+        [task setArguments: arguments];
+
+        [task setLaunchPath: @"/usr/bin/tccutil"];
+        [task launch];
+        [task waitUntilExit];
+        int status = [task terminationStatus];
+
+
+        auto pipe_c2p_stdout_data =  \
+                [[pipe_c2p_stdout fileHandleForReading] availableData];
+
+        auto cs_stdout = (char*)[pipe_c2p_stdout_data bytes];
+        fprintf(stderr, "%s", cs_stdout);
+
+        auto ns_stdout = \
+                [[[NSString alloc]
+                        initWithUTF8String: cs_stdout]
+                             stringByTrimmingCharactersInSet: white_space];
+
+        if
+        (
+            status == 0
+            &&
+            [ns_stdout hasPrefix: @"successfully reset ScreenCapture"]
+            &&
+            [ns_stdout hasSuffix: ns_bundle_id]
+        )
+        {
+            the_log_helper.action_successed = YES;
+        }
+    }
 
     float central_x = 100, central_y = 100;
     float bound_width = 4, bound_height = 4;
