@@ -45,16 +45,16 @@ An color picker for Win and Mac with pure native platform API
     在这一功能的代码实现上，首先使用了系统内置 tccutil 命令清除相应程序的权限记录，
     随后是调用屏幕捕获API，如此一来，确保了权限选择窗口**一定可以弹出**。
     
-    由于 tccutil 在清除权限记录时需要指定目标程序的 bundle-id，因此调用此功能时一共需要二个命令行参数。
-    以墨刀桌面版为例，这一程序的 bundle-id 为 com.MockingBot.MockingBotMAC，
-    因此，这一功能模式完整的命令行参数为: `ColorPicker --mode=2 --bundle-id=com.MockingBot.MockingBotMAC`。
+    由于 tccutil 在清除权限记录时需要指定目标程序的 bundle-id，因此调用此功能时共需两个命令行参数。
+    以墨刀桌面版为例，此程序 bundle-id 为 com.MockingBot.MockingBotMAC，
+    因而，这一功能模式完整的命令行参数为: `ColorPicker --mode=2 --bundle-id=com.MockingBot.MockingBotMAC`。
     
-    这一模式下，stdout 输出随着 tccutil 执行结果的不同而不同。
-    若 tccutil 成功清除了指定程序的权限记录，
+    这一模式下，stdout 的输出随 tccutil 执行结果的不同而不同。
+    如果 tccutil 成功清除了指定程序的权限记录，
     那么完整的输出信息为"`Promote Screen Record Permission Grant Window Succeeded: YES\n`"，
     反之为"`Promote Screen Record Permission Grant Window Succeeded: NO\n`"。
     
-    后续需要再次运行`--mode=1`获得权限检测结果。
+    需要额外说明的是，程序随后仍需再次运行`--mode=1`以确保用户确实对目标程序进行了授权。
 
 ### Windows平台辅助说明
 TODO：
