@@ -48,20 +48,25 @@
 const { // injected form preload.js
   SYSTEM_INFO_STRING,
   IS_DARWIN_PERMISSION_CHECK_REQUIRED,
-  EXEC_COLORPICKER_ASYNC
+  EXEC_COLORPICKER_ASYNC,
+  GET_DARWIN_MAIN_BUNDLE_ID_HACK_ASYNC
 } = window.PRELOAD
 
 window.qS = (selector) => document.querySelector(selector)
-window.pickColor = () => EXEC_COLORPICKER_ASYNC().then(({ stdout }) => {
+window.pickColor = async () => {
+  const { stdout } = await EXEC_COLORPICKER_ASYNC()
   qS('#result-pick-color').innerText = `Output Color: ${JSON.stringify(stdout)}`
-})
-window.getDarwinPermissionStatus = () => EXEC_COLORPICKER_ASYNC('--mode=1').then(({ stdout }) => {
+}
+window.getDarwinPermissionStatus = async () => {
+  const { stdout } = await EXEC_COLORPICKER_ASYNC('--mode=1')
   const isGranted = stdout.includes('Screen Record Permission Granted: YES') // if not, the YES will be NO
   qS('#result-darwin-permission').innerText = `Permission Granted: ${isGranted ? 'YES' : 'NO'}`
-})
-window.requestDarwinPermissionPopup =  () => EXEC_COLORPICKER_ASYNC('--mode=2', '--bundle-id=com.googlecode.iterm2').then(() => {
+}
+window.requestDarwinPermissionPopup = async () => {
+  const bundleId = await GET_DARWIN_MAIN_BUNDLE_ID_HACK_ASYNC()
+  await EXEC_COLORPICKER_ASYNC('--mode=2', `--bundle-id=${bundleId}`)
   console.log('[requestDarwinPermissionPopup] done')
-})
+}
 
 qS('#info').innerText = SYSTEM_INFO_STRING
 

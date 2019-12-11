@@ -31,11 +31,14 @@ const EXEC_COLORPICKER_ASYNC = async (...args) => new Promise((resolve, reject) 
   }
 ))
 
+const GET_DARWIN_MAIN_BUNDLE_ID_HACK_ASYNC = async () => require('./darwinMainBundleIdHack').getDarwinMainBundleIdHackAsync()
+
 // TODO: NOTE: above JS context: current + Browser + Electron
 process.once('loaded', () => { // TODO: NOTE: below JS context: current + Browser
   window.PRELOAD = { // expose to renderer process (Browser)
     SYSTEM_INFO_STRING,
     IS_DARWIN_PERMISSION_CHECK_REQUIRED,
-    EXEC_COLORPICKER_ASYNC
+    EXEC_COLORPICKER_ASYNC,
+    GET_DARWIN_MAIN_BUNDLE_ID_HACK_ASYNC
   }
 })
