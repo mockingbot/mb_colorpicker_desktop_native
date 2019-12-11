@@ -4,7 +4,7 @@
   "main": "main.js",
   "scripts": {
     "// install debug================": "",
-    "install-cn-mirror": "ELECTRON_MIRROR=\"https://npm.taobao.org/mirrors/electron/\" npm install",
+    "install-cn-mirror": "ELECTRON_MIRROR=\"https://cdn.npm.taobao.org/dist/electron/\" npm install",
     "rebuild-with-log": "DEBUG=\"*\" npm rebuild electron",
     "// =============================": "",
     "start": "electron ."
