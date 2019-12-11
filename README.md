@@ -49,6 +49,12 @@ An color picker for Win and Mac with pure native platform API
     以墨刀桌面版为例，此程序 bundle-id 为 com.MockingBot.MockingBotMAC，
     因而，这一功能模式完整的命令行参数为: `ColorPicker --mode=2 --bundle-id=com.MockingBot.MockingBotMAC`。
     
+    **特别需要注意的是**，所谓的`目标程序`是指取色器初始启动进程，例如：
+    若在 macOS 系统自带 Terminal 程序下启动取色器调试，则此时目标程序为 Terminal ，需要指定的 bundle-id 为 Terminal 的 bundle-id，而非
+     Electron 的 bundle-id。
+    同理，若在 iTerm2 下启动取色器调试，则此时目标程序为 iTerm2。
+    若取色器程序最终打包进桌面版的墨刀，即 MockingBot 程序，那么所谓的目标程序──在正常从启动面板上点击启动的话──就是MockingBot。
+    
     这一模式下，stdout 的输出随 tccutil 执行结果的不同而不同。
     如果 tccutil 成功清除了指定程序的权限记录，
     那么完整的输出信息为"`Promote Screen Record Permission Grant Window Succeeded: YES\n`"，
