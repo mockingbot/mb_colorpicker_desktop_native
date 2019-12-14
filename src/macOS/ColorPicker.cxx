@@ -3,6 +3,7 @@
 #include "../Instance.hxx"
 #include "../Predefined.hxx"
 
+
 BOOL should_log_out_central_pixel_color = YES;
 ScreenPixelData* recorded_screen_render_data_buffer = nullptr;
 
@@ -580,8 +581,6 @@ PreRun_Mode_PromoteScreenRecordPermisionGrantWindow
         [task setStandardInput: pipe_p2c_stdin];
         [task setStandardOutput: pipe_c2p_stdout];
         [task setStandardError: pipe_c2p_stderr];
-
-
 
         auto arguments = [[NSArray alloc] initWithObjects:
                         @"reset", @"ScreenCapture", ns_bundle_id, nil];
