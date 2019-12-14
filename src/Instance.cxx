@@ -162,7 +162,6 @@ RuntimeHostNative::RuntimeHostNative(const Instance* const instance)
 {
 #if defined(_WIN32)
     const auto instance_handle = GetModuleHandle(NULL);
-    printf("hInstance %p\n", instance_handle);
     wchar_t class_name[] = L"WINCLS#???????"; // ?? TODO:
 
     WNDCLASSEX wcex = {};
