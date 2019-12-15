@@ -161,10 +161,31 @@ ScreenLens::ZoomCallback
     RECT unclipped, RECT clipped, HRGN dirty
 )
 {
-    fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+    // fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+    current_screen_data_ = src_data;
+    current_screen_data_info_ = src_info;
+    return TRUE;
+}
+
+
+bool
+ScreenLens::RefreshScreenPixelDataWithinBound
+(
+    RECT bound_box
+)
+{
+    /*
+     * call this will trigeer zoom callback, therefor the
+     * current_screen_data_** will get updated
+     */
+    if( TRUE != setSourceRect(hwnd_magnifier_, bound_box) )
+    {
+        fprintf(stderr, "%s Error 1\n", __PRETTY_FUNCTION__);
+        return false;
+    }
 
     static auto rgba_data_to_raw_data = []
-    (void* rgba_data, DataInfo rgba_data_info, void* raw_data)
+    (void* rgba_data, DataInfo rgba_data_info)
     {
         const auto cursor_base = (uint8_t*)rgba_data + rgba_data_info.offset;
         for(UINT y = 0; y < rgba_data_info.height ; ++y)
@@ -176,72 +197,48 @@ ScreenLens::ZoomCallback
                 auto g = cursor[1];
                 auto r = cursor[2];
                 auto a = cursor[3];
-                printf("0x%02X%02X%02X%02X\n", r, g, b, a);
+                // printf("0x%02X%02X%02X%02X\n", r, g, b, a);
             }
         }
-
     };
 
-    if( IsEqualGUID(src_info.format, GUID_WICPixelFormat32bppRGBA) )
+    static auto bgr_data_to_raw_data = []
+    (void* rgba_data, DataInfo rgba_data_info)
     {
-        printf("GUID_WICPixelFormat32bppRGBA\n");
-        // rgba_data_to_raw_data(src_data, src_info, nullptr);
-        current_screen_data_ = src_data;
+        const auto cursor_base = (uint8_t*)rgba_data + rgba_data_info.offset;
+        for(UINT y = 0; y < rgba_data_info.height ; ++y)
+        {
+            for(UINT x = 0; x < rgba_data_info.height ; ++x)
+            {
+                auto cursor = cursor_base + y*rgba_data_info.stride + x*4;
+                auto b = cursor[0];
+                auto g = cursor[1];
+                auto r = cursor[2];
+                auto a = cursor[3];
+                // printf("0x%02X%02X%02X%02X\n", r, g, b, a);
+            }
+        }
+    };
+
+    if( IsEqualGUID(current_screen_data_info_.format, \
+                                GUID_WICPixelFormat32bppRGBA) )
+    {
+        rgba_data_to_raw_data(current_screen_data_, current_screen_data_info_);
+        return true;
     }
     else
-    if( IsEqualGUID(src_info.format, GUID_WICPixelFormat32bppBGR) )
+    if( IsEqualGUID(current_screen_data_info_.format, \
+                                GUID_WICPixelFormat32bppBGR) )
     {
-        printf("GUID_WICPixelFormat32bppBGR\n");
+        bgr_data_to_raw_data(current_screen_data_, current_screen_data_info_);
+        return true;
     }
     else
     {
-        printf("GUID_WICPixelFormat Unkwown\n");
+        fprintf(stderr, "%s Error 2\n", __PRETTY_FUNCTION__);
+        return false;
     }
-
-    printf("FFFFFFFFFFFFFFF %d\n", ::GetCurrentThreadId() );
-    printf("FFFFFFFFFFFFFFF %p\n", current_screen_data_ );
-
-    return TRUE;
 }
-
-
-bool
-ScreenLens::Refresh
-(
-)
-{
-    // current_screen_data_ = nullptr;
-    ::InvalidateRect(hwnd_magnifier_, NULL, TRUE);
-    if (current_screen_data_ == nullptr)
-    {
-        printf("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\n");
-    }
-
-    return true;
-}
-
-// bool
-// ScreenLens::RefreshScreenPixelDataWithinBound
-// (
-//     int central_x, int central_y,
-//     int bound_width, int bound_height,
-//     const WindowIDList& excluded_window_list,
-//     struct ScreenPixelData* const off_screen_render_data
-// )
-// {
-//     RECT bound_box;
-//     bound_box.left = central_x - bound_width/2;
-//     bound_box.right = bound_width - bound_box.left;
-//     bound_box.top = central_y - bound_height/2;
-//     bound_box.bottom = bound_height - bound_box.top;
-
-//     if( TRUE != setSourceRect(hwnd_magnifier_, bound_box) )
-//     {
-//         fprintf(stderr, "%s Error 1\n", __PRETTY_FUNCTION__);
-//     }
-
-//     ::InvalidateRect(hwnd_magnifier_, NULL, TRUE);
-// }
 
 
 MainWindow::MainWindow()
@@ -315,7 +312,6 @@ MainWindow::Hide()
 LRESULT CALLBACK
 MainWindow::Callback(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    // printf("%s\n", __PRETTY_FUNCTION__);
     switch(uMsg)
     {
     case WM_DESTROY:
@@ -332,15 +328,25 @@ MainWindow::Callback(UINT uMsg, WPARAM wParam, LPARAM lParam)
 void
 MainWindow::onRefreshTimerTick()
 {
-    printf("%s\n", __PRETTY_FUNCTION__);
+    // fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
     int x = 0, y = 0;
     GetCurrentCursorPosition(&x, &y);
-    fprintf(stderr, "Current Cursor Position: %4d %4d\n", x, y);
+    // fprintf(stderr, "Current Cursor Position: %4d %4d\n", x, y);
 
-    RefreshScreenPixelDataWithinBound( \
+    static uint32_t record_screen_render_data_fresh_ratio_counter = 0;
+
+    if( record_screen_render_data_fresh_ratio_counter == 0 )
+    {
+        RefreshScreenPixelDataWithinBound( \
             x, y, CAPTURE_WIDTH, CAPTURE_HEIGHT, \
                 excluded_window_list, recorded_screen_render_data_buffer );
+    }
+
+    record_screen_render_data_fresh_ratio_counter += 1;
+    record_screen_render_data_fresh_ratio_counter %= \
+        SCREEN_CAPTURE_FREQUENCY_TO_CURSOR_REFRESH_RATIO;
+
 }
 
 
@@ -361,14 +367,8 @@ RefreshScreenPixelDataWithinBound
 
     static auto screen_lens = new class ScreenLens;
 
-    screen_lens->SetScreenZoomBound(bound_box);
     screen_lens->SetExcludedWindowList(excluded_window_list);
-    screen_lens->Refresh();
-    printf("SSSSSSSSSSSSSS %d\n", ::GetCurrentThreadId() );
-
-    // screen_lens_->RefreshScreenPixelDataWithinBound( \
-    //         central_x, central_y, bound_width, bound_height, \
-    //         excluded_window_list, recorded_screen_render_data_buffer );
+    screen_lens->RefreshScreenPixelDataWithinBound(bound_box);
 
     return true;
 }

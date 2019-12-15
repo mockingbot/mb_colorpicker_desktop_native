@@ -87,32 +87,17 @@ private:
         RECT unclipped, RECT clipped, HRGN dirty
     );
 public:
-    // bool
-    // RefreshScreenPixelDataWithinBound
-    // (
-    //     int central_x, int central_y,
-    //     int bound_width, int bound_height,
-    //     const WindowIDList& excluded_window_list,
-    //     struct ScreenPixelData* const off_screen_render_data
-    // );
-public:
-    bool
-    SetScreenZoomBound(RECT rect)
-    {
-        return setSourceRect(hwnd_magnifier_, rect) == TRUE ? true : false;
-    }
-public:
     bool
     SetExcludedWindowList(const WindowIDList& list)
     {
         return setFilterList(hwnd_magnifier_, 0, \
                     (int)list.size(), list.data() ) == TRUE ? true : false;
     }
-// public:
 private:
     void* current_screen_data_ = nullptr;
+    DataInfo current_screen_data_info_ = {};
 public:
-    bool Refresh();
+    bool RefreshScreenPixelDataWithinBound(RECT bound_box);
 };
 
 
@@ -144,3 +129,21 @@ private:
 private:
     UINT_PTR refresh_timer_;
 };
+
+
+class Application
+{
+public:
+    Application();
+    ~Application();
+private:
+    HINSTANCE instance_handle_ = NULL;
+    wchar_t* class_name_ = NULL;
+private:
+    static LRESULT CALLBACK
+    Callback
+    (
+        HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
+    );
+};
+
