@@ -36,6 +36,7 @@ public:
 private:
     HMODULE module_handle_ = nullptr;
 private:
+    wchar_t* window_class_name_ = nullptr;
     HWND hwnd_magnifier_host_ = nullptr;
     HWND hwnd_magnifier_ = nullptr;
 private:
@@ -117,33 +118,18 @@ public:
     MainWindow();
     ~MainWindow();
 private:
+    friend LRESULT CALLBACK WindowProcess(HWND, UINT, WPARAM, LPARAM);
+private:
     LRESULT CALLBACK Callback(UINT uMsg, WPARAM wParam, LPARAM lParam);
 private:
-    decltype(&Callback) window_callback_fun_ptr_ = nullptr;
-    HWND handle_ = nullptr;
+    wchar_t* window_class_name_ = NULL;
+    HWND window_handle_ = nullptr;
 public:
-    void Show();
-    void Hide();
+    void Show() { ::ShowWindow(window_handle_, SW_SHOW); }
+    void Hide() { ::ShowWindow(window_handle_, SW_HIDE); };
 private:
     void onRefreshTimerTick();
 private:
     UINT_PTR refresh_timer_;
-};
-
-
-class Application
-{
-public:
-    Application();
-    ~Application();
-private:
-    HINSTANCE instance_handle_ = NULL;
-    wchar_t* class_name_ = NULL;
-private:
-    static LRESULT CALLBACK
-    Callback
-    (
-        HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
-    );
 };
 

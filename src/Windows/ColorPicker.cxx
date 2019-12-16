@@ -9,6 +9,7 @@ ScreenPixelData* recorded_screen_render_data_buffer = nullptr;
 
 WindowIDList excluded_window_list;
 
+
 void
 GetCurrentCursorPosition
 (
@@ -26,20 +27,32 @@ GetCurrentCursorPosition
 ScreenLens::ScreenLens()
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-
-    auto runtime_host = Instance::RuntimeHost();
-
-    auto runtime_host_data = (void**)runtime_host;
-    auto instance_handle = (HINSTANCE)runtime_host_data[2];
-    auto class_name = (wchar_t*)runtime_host_data[3];
-
     module_handle_ = ::LoadLibrary(L"Magnification.dll");
 
     reinterpret_cast<BOOL(WINAPI*)(void)>( \
         ::GetProcAddress(module_handle_, "MagInitialize") )();
 
+    auto runtime_host = Instance::RuntimeHost();
+    auto instance_handle = (HINSTANCE)(((void**)runtime_host)[2]);
+
+    window_class_name_ = L"MG_WINCLS#???????"; // ?? TODO:
+
+    WNDCLASSEX wcex = {};
+
+    wcex.cbSize         = sizeof(WNDCLASSEX);
+    wcex.lpfnWndProc    = ::DefWindowProc;
+    wcex.hInstance      = instance_handle;
+    wcex.lpszClassName  = window_class_name_;
+    wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
+    wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
+
+    if( 0 == ::RegisterClassEx(&wcex) ) {
+        fprintf(stderr, "RuntimeHostNative Constructor Error 1\n");
+        throw std::runtime_error("RuntimeHostNative Constructor Error 1");
+    }
+
     hwnd_magnifier_host_ = ::CreateWindow( \
-                                        class_name,
+                                        window_class_name_,
                                         L"MagnifierWindowHost",
                                         WS_POPUP,
                                         0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT,
@@ -138,6 +151,13 @@ ScreenLens::~ScreenLens()
 
     ::DestroyWindow(hwnd_magnifier_);
     ::DestroyWindow(hwnd_magnifier_host_);
+
+    auto runtime_host = Instance::RuntimeHost();
+    auto instance_handle = (HINSTANCE)(((void**)runtime_host)[2]);
+    if( 0 == ::UnregisterClass(window_class_name_, instance_handle) )
+    {
+        fprintf(stderr, "RuntimeHostNative Deconstructor Error\n");
+    }
 
     reinterpret_cast<BOOL(WINAPI*)(void)>( \
             ::GetProcAddress(module_handle_, "MagUninitialize") )();
@@ -241,26 +261,76 @@ ScreenLens::RefreshScreenPixelDataWithinBound
 }
 
 
+LRESULT CALLBACK
+WindowProcess
+(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
+)
+{
+    class MainWindow* window = nullptr;
+
+    if( uMsg == WM_NCCREATE )
+    {
+        auto cs = reinterpret_cast<CREATESTRUCT*>(lParam);
+        if( cs->lpCreateParams != nullptr )
+        {
+            window = *(class MainWindow**)(cs->lpCreateParams);
+            window->window_handle_ = hWnd;
+
+            ::SetLastError(ERROR_SUCCESS);
+            auto result = ::SetWindowLongPtr(hWnd, \
+                    GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
+            if( result == 0 && ::GetLastError() != ERROR_SUCCESS )
+            {
+                fprintf(stderr, "RuntimeHostNative::WndProc Error 1\n");
+            }
+        }
+    }
+    else
+    {
+        window = (class MainWindow*)::GetWindowLongPtr(hWnd, GWLP_USERDATA);
+    }
+
+    if( window != nullptr )
+    {
+        return window->Callback(uMsg, wParam, lParam);
+    }
+    return ::DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
+
+
 MainWindow::MainWindow()
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-
     auto runtime_host = Instance::RuntimeHost();
+    auto instance_handle = (HINSTANCE)(((void**)runtime_host)[2]);
 
-    auto runtime_host_data = (void**)runtime_host;
-    auto instance_handle = (HINSTANCE)runtime_host_data[2];
-    auto class_name = (wchar_t*)runtime_host_data[3];
+    window_class_name_ = L"WINCLS#???????"; // ?? TODO:
 
-    window_callback_fun_ptr_ = &MainWindow::Callback;
+    WNDCLASSEX wcex = {};
+
+    wcex.cbSize         = sizeof(WNDCLASSEX);
+    wcex.lpfnWndProc    = WindowProcess;
+    wcex.hInstance      = instance_handle;
+    wcex.lpszClassName  = window_class_name_;
+    wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
+    wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
+
+    if( 0 == ::RegisterClassEx(&wcex) ) {
+        fprintf(stderr, "RuntimeHostNative Constructor Error 1\n");
+        throw std::runtime_error("RuntimeHostNative Constructor Error 1");
+    }
 
     CREATESTRUCT create_struct = {};
     create_struct.lpCreateParams = this;
+    printf("this %p\n", this);
+    printf("ccccccccccc %p\n", &create_struct);
 
-    handle_ = ::CreateWindowEx( \
+    window_handle_ = ::CreateWindowEx( \
                         // WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
                         // WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
                         0x0000,
-                        class_name,
+                        window_class_name_,
                         L"ColorPicker",
                         WS_OVERLAPPEDWINDOW,
                         400, 400, UI_WINDOW_SIZE, UI_WINDOW_SIZE,
@@ -268,18 +338,19 @@ MainWindow::MainWindow()
                         nullptr,
                         instance_handle,
                         &create_struct);
-    if( handle_ == NULL)
+
+    if( window_handle_ == NULL)
     {
         fprintf(stderr, "MainWindow Constructor Error 1 %d\n", ::GetLastError());
         throw std::runtime_error("MainWindow Constructor Error 1");
     }
 
     const auto fresh_time_interval = 1.0f/CURSOR_REFRESH_FREQUENCY;
-    refresh_timer_ = ::SetTimer(handle_, \
+    refresh_timer_ = ::SetTimer(window_handle_, \
                         (UINT_PTR)this, fresh_time_interval*1000, nullptr);
 
     // cache excluded window list
-    excluded_window_list.push_back(handle_);
+    excluded_window_list.push_back(window_handle_);
 
     // alloc data buffer
     const auto data_size = CAPTURE_WIDTH*CAPTURE_HEIGHT;
@@ -290,22 +361,17 @@ MainWindow::MainWindow()
 MainWindow::~MainWindow()
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
-    ::KillTimer(handle_, refresh_timer_);
-    ::DestroyWindow(handle_);
-}
 
+    ::KillTimer(window_handle_, refresh_timer_);
 
-void
-MainWindow::Show()
-{
-    ::ShowWindow(handle_, SW_SHOW);
-}
+    ::DestroyWindow(window_handle_);
 
-
-void
-MainWindow::Hide()
-{
-    ::ShowWindow(handle_, SW_HIDE);
+    auto runtime_host = Instance::RuntimeHost();
+    auto instance_handle = (HINSTANCE)(((void**)runtime_host)[2]);
+    if( 0 == ::UnregisterClass(window_class_name_, instance_handle) )
+    {
+        fprintf(stderr, "RuntimeHostNative Deconstructor Error\n");
+    }
 }
 
 
@@ -321,14 +387,14 @@ MainWindow::Callback(UINT uMsg, WPARAM wParam, LPARAM lParam)
         onRefreshTimerTick();
     break;
     }
-    return ::DefWindowProc(handle_, uMsg, wParam, lParam);
+    return ::DefWindowProc(window_handle_, uMsg, wParam, lParam);
 }
 
 
 void
 MainWindow::onRefreshTimerTick()
 {
-    // fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+    fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
     int x = 0, y = 0;
     GetCurrentCursorPosition(&x, &y);

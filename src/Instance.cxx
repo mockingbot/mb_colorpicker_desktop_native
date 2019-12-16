@@ -139,16 +139,9 @@ public:
     ~RuntimeHostNative();
 private:
     int Execute() const;
+private:
 #if defined(_WIN32)
-private:
     HINSTANCE instance_handle_ = NULL;
-    wchar_t* class_name_ = NULL;
-private:
-    static LRESULT CALLBACK
-    WndProc
-    (
-        HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
-    );
 #elif defined(__APPLE__)
     // TODO:
     NSAutoreleasePool* auto_release_pool_;
@@ -161,28 +154,7 @@ private:
 RuntimeHostNative::RuntimeHostNative(const Instance* const instance)
 {
 #if defined(_WIN32)
-    const auto instance_handle = GetModuleHandle(NULL);
-    wchar_t class_name[] = L"WINCLS#???????"; // ?? TODO:
-
-    WNDCLASSEX wcex = {};
-
-    wcex.cbSize         = sizeof(WNDCLASSEX);
-    wcex.lpfnWndProc    = WndProc;
-    wcex.hInstance      = instance_handle;
-    wcex.lpszClassName  = class_name;
-    wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
-
-    if( 0 == ::RegisterClassEx(&wcex) ) {
-        fprintf(stderr, "RuntimeHostNative Constructor Error 1\n");
-        throw std::runtime_error("RuntimeHostNative Constructor Error 1");
-    }
-
-    class_name_ = new wchar_t[sizeof(class_name)/sizeof(wchar_t)];
-    for(uint32_t idx = 0; idx < sizeof(class_name)/sizeof(wchar_t); ++idx) {
-        class_name_[idx] = class_name[idx];
-    }
-    instance_handle_ = instance_handle;
+    instance_handle_ = ::GetModuleHandle(NULL);
 #elif defined(__APPLE__)
     auto_release_pool_ = [NSAutoreleasePool new];
 #else
@@ -194,66 +166,13 @@ RuntimeHostNative::RuntimeHostNative(const Instance* const instance)
 RuntimeHostNative::~RuntimeHostNative()
 {
 #if defined(_WIN32)
-    if( 0 == ::UnregisterClass(class_name_, instance_handle_) )
-    {
-        fprintf(stderr, "RuntimeHostNative Deconstructor Error\n");
-    }
-    delete[] class_name_;
+
 #elif defined(__APPLE__)
     // #TODO
-
 #else
     #error Unknow OS
 #endif
 }
-
-
-#if defined(_WIN32)
-
-LRESULT CALLBACK
-RuntimeHostNative::WndProc
-(
-    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
-)
-{
-    void** window = nullptr;
-
-    if( uMsg == WM_NCCREATE )
-    {
-        auto cs = reinterpret_cast<CREATESTRUCT*>(lParam);
-        if( cs->lpCreateParams != nullptr )
-        {
-            window = *(void***)(cs->lpCreateParams);
-            window[1] = hWnd; // set window handle
-
-            ::SetLastError(ERROR_SUCCESS);
-            auto result = ::SetWindowLongPtr(hWnd, \
-                    GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
-            if( result == 0 && ::GetLastError() != ERROR_SUCCESS )
-            {
-                fprintf(stderr, "RuntimeHostNative::WndProc Error 1\n");
-            }
-        }
-    }
-    else
-    {
-        window = (void**)::GetWindowLongPtr(hWnd, GWLP_USERDATA);
-    }
-
-    if( window != nullptr )
-    {
-        LRESULT (CALLBACK *window_callback_t)(void*, UINT, WPARAM, LPARAM);
-        auto window_callback = (decltype(window_callback_t))window[0];
-        return window_callback(window, uMsg, wParam, lParam);
-    }
-    return ::DefWindowProc(hWnd, uMsg, wParam, lParam);
-}
-
-#endif // #defined(_WIN32)
-
-#if defined(__APPLE__)
-
-#endif // #defined(__APPLE__)
 
 
 int
