@@ -462,12 +462,12 @@ MainWindow::onRefreshTimerTick()
             central_x, central_y, CAPTURE_WIDTH, CAPTURE_HEIGHT, \
                 excluded_window_list, recorded_screen_render_data_buffer );
 
-        // float painting_time = 0;
+        float painting_time = 0;
         {
-            // class PerformanceCounter<float> counter(&painting_time);
+            class PerformanceCounter<float> counter(&painting_time);
             drawClientContent();
         }
-        // fprintf(stderr, "Paint Time %f ms\n", painting_time/1000);
+        fprintf(stderr, "Paint Time %f ms\n", painting_time/1000);
     }
 
     record_screen_render_data_fresh_ratio_counter += 1;
@@ -505,16 +505,13 @@ MainWindow::drawClientContent()
 
     ::SelectObject(mem_dc, mem_bitmap);
 
-    float painting_time;
     {
-        class PerformanceCounter<float> timer(&painting_time);
         Gdiplus::Graphics graph(mem_dc);
 
         auto color = Gdiplus::Color::MakeARGB(0xff, 0xff, 0x00, 0x00);
         graph.FillRectangle(&Gdiplus::SolidBrush(color), \
                             0, 0, UI_WINDOW_SIZE, UI_WINDOW_SIZE);
     }
-    fprintf(stderr, "Gdiplus Paint Time %f ms\n", painting_time/1000);
 
     /*
     {
