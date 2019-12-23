@@ -55,7 +55,7 @@ const { // injected form preload.js
 window.qS = (selector) => document.querySelector(selector)
 window.pickColor = async () => {
   const { stdout } = await EXEC_COLORPICKER_ASYNC()
-  qS('#result-pick-color').innerText = `Output Color: ${JSON.stringify(stdout)}`
+  qS('#result-pick-color').innerText = `Output Color: ${stdout}`
 }
 window.getDarwinPermissionStatus = async () => {
   const { stdout } = await EXEC_COLORPICKER_ASYNC('--mode=1')
