@@ -3,6 +3,29 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
+#include <objidl.h>
+#include <gdiplus.h>
+
+#pragma comment(lib, "gdiplus.lib")
+
+class GDI_PLUS_INITIALIZER
+{
+private:
+    ULONG_PTR gdiplusToken;
+    ::Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+public:
+    GDI_PLUS_INITIALIZER()
+    {
+        ::Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+    }
+    ~GDI_PLUS_INITIALIZER()
+    {
+        ::Gdiplus::GdiplusShutdown(gdiplusToken);
+    }
+}
+gdi_plus_initializer;
+
+
 #include <vector>
 
 typedef HWND WindowID ;
@@ -98,7 +121,11 @@ private:
     void* current_screen_data_ = nullptr;
     DataInfo current_screen_data_info_ = {};
 public:
-    bool RefreshScreenPixelDataWithinBound(RECT bound_box);
+    bool RefreshScreenPixelDataWithinBound(
+        int central_x, int central_y,
+        int bound_width, int bound_height,
+        struct ScreenPixelData* const off_screen_render_data
+    );
 };
 
 
@@ -124,6 +151,8 @@ private:
 private:
     wchar_t* window_class_name_ = NULL;
     HWND window_handle_ = nullptr;
+private:
+    HDC window_dc_ = nullptr;
 public:
     void Show() { ::ShowWindow(window_handle_, SW_SHOW); }
     void Hide() { ::ShowWindow(window_handle_, SW_HIDE); };
@@ -131,5 +160,34 @@ private:
     void onRefreshTimerTick();
 private:
     UINT_PTR refresh_timer_;
+private:
+    class Gdiplus::Bitmap* mask_bitmap_ = nullptr;
+private:
+    void drawClientContent();
 };
+
+
+template <typename T>
+class PerformanceCounter
+{
+    LARGE_INTEGER start_tick, end_tick, frequency;
+    LARGE_INTEGER elapsed_tick;
+    T* const elapsed_microseconds_;
+public:
+    PerformanceCounter(T* elapsed_microseconds)
+    :elapsed_microseconds_(elapsed_microseconds)
+    {
+        ::QueryPerformanceFrequency(&frequency);
+        ::QueryPerformanceCounter(&start_tick);
+    }
+public:
+    ~PerformanceCounter()
+    {
+        ::QueryPerformanceCounter(&end_tick);
+        elapsed_tick.QuadPart = end_tick.QuadPart - start_tick.QuadPart;
+        elapsed_tick.QuadPart *= 1000000;
+        *elapsed_microseconds_ = elapsed_tick.QuadPart / frequency.QuadPart;
+    }
+};
+
 

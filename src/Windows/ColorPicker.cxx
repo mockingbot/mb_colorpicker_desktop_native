@@ -55,7 +55,8 @@ ScreenLens::ScreenLens()
                                         window_class_name_,
                                         L"MagnifierWindowHost",
                                         WS_POPUP,
-                                        0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT,
+                                        CW_USEDEFAULT, CW_USEDEFAULT,
+                                        CAPTURE_WIDTH, CAPTURE_HEIGHT,
                                         nullptr,
                                         nullptr,
                                         instance_handle,
@@ -168,8 +169,6 @@ ScreenLens::~ScreenLens()
 DEFINE_GUID(GUID_WICPixelFormat32bppRGBA, \
     0xf5c7ad2d, 0x6a8d, 0x43dd, 0xa7, 0xa8, 0xa2, 0x99, 0x35, 0x26, 0x1a, 0xe9);
 
-DEFINE_GUID(GUID_WICPixelFormat32bppBGR, \
-    0x6fddc324, 0x4e03, 0x4bfe, 0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x0e);
 
 BOOL
 CALLBACK
@@ -191,9 +190,17 @@ ScreenLens::ZoomCallback
 bool
 ScreenLens::RefreshScreenPixelDataWithinBound
 (
-    RECT bound_box
+    int central_x, int central_y,
+    int bound_width, int bound_height,
+    struct ScreenPixelData* const off_screen_render_data
 )
 {
+    RECT bound_box;
+    bound_box.left = central_x - bound_width/2;
+    bound_box.right = bound_width - bound_box.left;
+    bound_box.top = central_y - bound_height/2;
+    bound_box.bottom = bound_height - bound_box.top;
+
     /*
      * call this will trigeer zoom callback, therefor the
      * current_screen_data_** will get updated
@@ -205,52 +212,39 @@ ScreenLens::RefreshScreenPixelDataWithinBound
     }
 
     static auto rgba_data_to_raw_data = []
-    (void* rgba_data, DataInfo rgba_data_info)
+    (void* rgba_data, auto rgba_data_info, auto dst_data)
     {
         const auto cursor_base = (uint8_t*)rgba_data + rgba_data_info.offset;
-        for(UINT y = 0; y < rgba_data_info.height ; ++y)
-        {
-            for(UINT x = 0; x < rgba_data_info.height ; ++x)
-            {
-                auto cursor = cursor_base + y*rgba_data_info.stride + x*4;
-                auto b = cursor[0];
-                auto g = cursor[1];
-                auto r = cursor[2];
-                auto a = cursor[3];
-                // printf("0x%02X%02X%02X%02X\n", r, g, b, a);
-            }
-        }
-    };
+        auto dst_data_cursor = (struct ScreenPixelData*)dst_data;
 
-    static auto bgr_data_to_raw_data = []
-    (void* rgba_data, DataInfo rgba_data_info)
-    {
-        const auto cursor_base = (uint8_t*)rgba_data + rgba_data_info.offset;
         for(UINT y = 0; y < rgba_data_info.height ; ++y)
         {
-            for(UINT x = 0; x < rgba_data_info.height ; ++x)
+            for(UINT x = 0; x < rgba_data_info.width ; ++x)
             {
                 auto cursor = cursor_base + y*rgba_data_info.stride + x*4;
                 auto b = cursor[0];
                 auto g = cursor[1];
                 auto r = cursor[2];
                 auto a = cursor[3];
-                // printf("0x%02X%02X%02X%02X\n", r, g, b, a);
+                // fprintf(stderr, "0x%02X%02X%02X ", r, g, b);
+
+                dst_data_cursor->b = cursor[0];
+                dst_data_cursor->g = cursor[1];
+                dst_data_cursor->r = cursor[2];
+
+                dst_data_cursor++;
             }
+            // fprintf(stderr, "\n");
         }
+        // fprintf(stderr, "\n");
     };
 
     if( IsEqualGUID(current_screen_data_info_.format, \
                                 GUID_WICPixelFormat32bppRGBA) )
     {
-        rgba_data_to_raw_data(current_screen_data_, current_screen_data_info_);
-        return true;
-    }
-    else
-    if( IsEqualGUID(current_screen_data_info_.format, \
-                                GUID_WICPixelFormat32bppBGR) )
-    {
-        bgr_data_to_raw_data(current_screen_data_, current_screen_data_info_);
+        rgba_data_to_raw_data(current_screen_data_, \
+                                current_screen_data_info_, \
+                                          off_screen_render_data);
         return true;
     }
     else
@@ -315,6 +309,7 @@ MainWindow::MainWindow()
     wcex.lpszClassName  = window_class_name_;
     wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
+    wcex.style          = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
 
     if( 0 == ::RegisterClassEx(&wcex) ) {
         fprintf(stderr, "RuntimeHostNative Constructor Error 1\n");
@@ -323,16 +318,12 @@ MainWindow::MainWindow()
 
     CREATESTRUCT create_struct = {};
     create_struct.lpCreateParams = this;
-    printf("this %p\n", this);
-    printf("ccccccccccc %p\n", &create_struct);
 
     window_handle_ = ::CreateWindowEx( \
-                        // WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
-                        // WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
-                        0x0000,
+                        WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
                         window_class_name_,
                         L"ColorPicker",
-                        WS_OVERLAPPEDWINDOW,
+                        WS_POPUP,
                         400, 400, UI_WINDOW_SIZE, UI_WINDOW_SIZE,
                         nullptr,
                         nullptr,
@@ -345,6 +336,8 @@ MainWindow::MainWindow()
         throw std::runtime_error("MainWindow Constructor Error 1");
     }
 
+    window_dc_ = ::GetDC(window_handle_); // GetDC must pair with ReleaseDC
+
     const auto fresh_time_interval = 1.0f/CURSOR_REFRESH_FREQUENCY;
     refresh_timer_ = ::SetTimer(window_handle_, \
                         (UINT_PTR)this, fresh_time_interval*1000, nullptr);
@@ -355,6 +348,29 @@ MainWindow::MainWindow()
     // alloc data buffer
     const auto data_size = CAPTURE_WIDTH*CAPTURE_HEIGHT;
     recorded_screen_render_data_buffer = new struct ScreenPixelData[data_size];
+
+    //! load mask image with zoom factor 1
+    //! therefor it may look odd when in hdpi screen
+    mask_bitmap_ = []()
+    {
+        Gdiplus::Bitmap* bitmap = nullptr;
+
+        auto hBuffer = ::GlobalAlloc(GMEM_MOVEABLE, RES_Circle_Mask_len);
+        auto pBuffer = ::GlobalLock(hBuffer);
+
+        IStream* pStream = NULL;
+        ::CreateStreamOnHGlobal(hBuffer, FALSE, &pStream);
+
+        ::CopyMemory(pBuffer, RES_Circle_Mask, RES_Circle_Mask_len);
+
+        bitmap = Gdiplus::Bitmap::FromStream(pStream);
+
+        pStream->Release();
+        ::GlobalUnlock(hBuffer);
+        ::GlobalFree(hBuffer);
+
+        return bitmap;
+    }();
 }
 
 
@@ -363,6 +379,8 @@ MainWindow::~MainWindow()
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
     ::KillTimer(window_handle_, refresh_timer_);
+
+    ::ReleaseDC(window_handle_, window_dc_);
 
     ::DestroyWindow(window_handle_);
 
@@ -386,6 +404,39 @@ MainWindow::Callback(UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_TIMER:
         onRefreshTimerTick();
     break;
+    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    {
+        fprintf(stderr, "Mouse Button Down\n");
+    }
+    break;
+    case WM_LBUTTONUP:
+    case WM_RBUTTONUP:
+    {
+        fprintf(stderr, "Mouse Button Up\n");
+        PostQuitMessage(0);
+    }
+    break;
+    case WM_KEYUP:
+    {
+        fprintf(stderr, "Key Up %d\n", (int)wParam);
+    }
+    break;
+    case WM_KEYDOWN:
+    {
+        fprintf(stderr, "Key Down %d\n", (int)wParam);
+
+        if(wParam == VK_ESCAPE)
+        {
+            should_log_out_central_pixel_color = FALSE;
+            PostQuitMessage(0);
+        }
+        if(wParam == VK_RETURN || wParam == VK_SPACE )
+        {
+            PostQuitMessage(0);
+        }
+    }
+    break;
     }
     return ::DefWindowProc(window_handle_, uMsg, wParam, lParam);
 }
@@ -394,25 +445,155 @@ MainWindow::Callback(UINT uMsg, WPARAM wParam, LPARAM lParam)
 void
 MainWindow::onRefreshTimerTick()
 {
-    fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+    // fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
-    int x = 0, y = 0;
-    GetCurrentCursorPosition(&x, &y);
-    // fprintf(stderr, "Current Cursor Position: %4d %4d\n", x, y);
+    int cursor_x = 0, cursor_y = 0;
+    GetCurrentCursorPosition(&cursor_x, &cursor_y);
+    // fprintf(stderr, "Current Cursor Position: %4d %4d\n", cursor_x, cursor_y);
+
+    int central_x = cursor_x;
+    int central_y = cursor_y;
 
     static uint32_t record_screen_render_data_fresh_ratio_counter = 0;
 
     if( record_screen_render_data_fresh_ratio_counter == 0 )
     {
         RefreshScreenPixelDataWithinBound( \
-            x, y, CAPTURE_WIDTH, CAPTURE_HEIGHT, \
+            central_x, central_y, CAPTURE_WIDTH, CAPTURE_HEIGHT, \
                 excluded_window_list, recorded_screen_render_data_buffer );
+
+        // float painting_time = 0;
+        {
+            // class PerformanceCounter<float> counter(&painting_time);
+            drawClientContent();
+        }
+        // fprintf(stderr, "Paint Time %f ms\n", painting_time/1000);
     }
 
     record_screen_render_data_fresh_ratio_counter += 1;
     record_screen_render_data_fresh_ratio_counter %= \
         SCREEN_CAPTURE_FREQUENCY_TO_CURSOR_REFRESH_RATIO;
 
+    // move window
+    int new_window_position_x = cursor_x - UI_WINDOW_SIZE/2;
+    int new_window_position_y = cursor_y - UI_WINDOW_SIZE/2;
+
+    ::SetWindowPos(window_handle_, 0, \
+            new_window_position_x, new_window_position_y, 0, 0, \
+            SWP_NOREDRAW | SWP_NOSIZE | SWP_NOZORDER
+        );
+}
+
+
+void
+MainWindow::drawClientContent()
+{
+    SIZE wnd_size = {UI_WINDOW_SIZE, UI_WINDOW_SIZE};
+
+    auto mem_dc = ::CreateCompatibleDC(window_dc_);
+
+    BITMAPINFO bitmap_info = {};
+    bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bitmap_info.bmiHeader.biWidth = UI_WINDOW_SIZE;
+    bitmap_info.bmiHeader.biHeight = -UI_WINDOW_SIZE;
+    bitmap_info.bmiHeader.biPlanes = 1;
+    bitmap_info.bmiHeader.biBitCount = 32;
+    bitmap_info.bmiHeader.biCompression = BI_RGB;
+
+    auto mem_bitmap = ::CreateDIBSection( \
+            mem_dc, &bitmap_info, DIB_RGB_COLORS, nullptr, NULL, NULL);
+
+    ::SelectObject(mem_dc, mem_bitmap);
+
+    float painting_time;
+    {
+        class PerformanceCounter<float> timer(&painting_time);
+        Gdiplus::Graphics graph(mem_dc);
+
+        auto color = Gdiplus::Color::MakeARGB(0xff, 0xff, 0x00, 0x00);
+        graph.FillRectangle(&Gdiplus::SolidBrush(color), \
+                            0, 0, UI_WINDOW_SIZE, UI_WINDOW_SIZE);
+    }
+    fprintf(stderr, "Gdiplus Paint Time %f ms\n", painting_time/1000);
+
+    /*
+    {
+        Gdiplus::Graphics graph(mem_dc);
+
+        // auto color = Gdiplus::Color::MakeARGB(0xff, 0xff, 0x00, 0x00);
+        // graph.FillRectangle(&Gdiplus::SolidBrush(color), \
+        //                     0, 0, UI_WINDOW_SIZE, UI_WINDOW_SIZE);
+
+        auto graphics_state = graph.Save();
+
+        // clip the circle
+        Gdiplus::GraphicsPath path(Gdiplus::FillMode::FillModeWinding);
+        path.AddEllipse(4, 4, 163, 163);
+        Gdiplus::Region region(&path);
+        graph.SetClip(&region, Gdiplus::CombineMode::CombineModeReplace);
+
+        Gdiplus::RectF window_rect(0, 0, UI_WINDOW_SIZE, UI_WINDOW_SIZE);
+
+        // background as grid
+        auto background_color = Gdiplus::Color::MakeARGB( \
+                    0.98f *0xFF, 0.72f *0xFF, 0.72f *0xFF, 0.72f *0xFF );
+        Gdiplus::SolidBrush background_brush(background_color);
+
+        graph.FillRectangle(&background_brush, window_rect);
+
+        // draw every pixels
+        for(int idx_y = 0; idx_y < CAPTURE_HEIGHT; ++idx_y)
+        {
+            for(int idx_x = 0; idx_x < CAPTURE_WIDTH; ++idx_x)
+            {
+                auto pixel = recorded_screen_render_data_buffer[ \
+                                            idx_y*CAPTURE_WIDTH+idx_x];
+
+                int r = pixel.r, g = pixel.g, b = pixel.b;
+
+                auto pixel_color = Gdiplus::Color::MakeARGB(0xff, r, g, b);
+                Gdiplus::SolidBrush brush(pixel_color);
+
+                int x = 1 + (GRID_PIXEL + 1)*idx_x;
+                int y = 1 + (GRID_PIXEL + 1)*idx_y;
+                graph.FillRectangle(&brush, x, y, GRID_PIXEL, GRID_PIXEL);
+            }
+        }
+
+        // draw center grid
+        int x = 1 + (1+GRID_PIXEL)*GRID_NUMUBER_L - 1;
+        int y = 1 + (1+GRID_PIXEL)*GRID_NUMUBER_L - 1;
+
+        Gdiplus::Pen black_pen(Gdiplus::Color(0xFF, 0x00, 0x00, 0x00), 1);
+        Gdiplus::Pen white_pen(Gdiplus::Color(0xFF, 0xFF, 0xFF, 0xFF), 1);
+
+        graph.DrawRectangle(&black_pen, x, y, GRID_PIXEL+1, GRID_PIXEL+1);
+        graph.DrawRectangle(&white_pen, x+1, y+1, GRID_PIXEL-1, GRID_PIXEL-1);
+
+        graph.Restore(graphics_state);
+
+        // draw circle mask
+        graph.DrawImage(mask_bitmap_, window_rect);
+    }
+    */
+
+    POINT src_point = {0, 0};
+    BLENDFUNCTION blend_fun = {AC_SRC_OVER, 0, 0xFF, AC_SRC_ALPHA};
+
+    ::UpdateLayeredWindow(
+            window_handle_,
+            window_dc_,
+            nullptr,
+            &wnd_size,
+            mem_dc,
+            &src_point,
+            0,
+            &blend_fun,
+            ULW_ALPHA
+        );
+
+    ::DeleteObject(mem_bitmap);
+    ::DeleteDC(mem_dc);
 }
 
 
@@ -425,20 +606,19 @@ RefreshScreenPixelDataWithinBound
     struct ScreenPixelData* const off_screen_render_data
 )
 {
-    RECT bound_box;
-    bound_box.left = central_x - bound_width/2;
-    bound_box.right = bound_width - bound_box.left;
-    bound_box.top = central_y - bound_height/2;
-    bound_box.bottom = bound_height - bound_box.top;
-
     static auto screen_lens = new class ScreenLens;
 
     screen_lens->SetExcludedWindowList(excluded_window_list);
-    screen_lens->RefreshScreenPixelDataWithinBound(bound_box);
+    screen_lens->RefreshScreenPixelDataWithinBound( \
+                                     central_x, central_y, \
+                                         bound_width, bound_height, \
+                                                off_screen_render_data );
 
     return true;
 }
 
+
+class MainWindow* main_window;
 
 void
 PreRun_Mode_Normal()
@@ -447,16 +627,35 @@ PreRun_Mode_Normal()
     fprintf(stderr, "screen record size: %4u %4u\n", \
                                 CAPTURE_WIDTH, CAPTURE_HEIGHT);
 
-    // MainWindow main_window;
-    auto main_window = new MainWindow();
+    main_window = new MainWindow();
     main_window->Show();
+    ::ShowCursor(FALSE); // hide cursor
 }
-
 
 void
 PostRun_Mode_Normal()
 {
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+
+    ::ShowCursor(TRUE); // show cursor
+    delete main_window;
+
+    int x = GRID_NUMUBER_L;
+    int y = GRID_NUMUBER_L;
+    auto pixel = recorded_screen_render_data_buffer[y*CAPTURE_WIDTH+x];
+
+    int r = pixel.r;
+    int g = pixel.g;
+    int b = pixel.b;
+
+    if( should_log_out_central_pixel_color == TRUE )
+    {
+        fprintf(stdout, "#%02X%02X%02X\n", r, g, b);
+    }
+    else
+    {
+        fprintf(stderr, "#%02X%02X%02X\n", r, g, b);
+    }
 }
 
 

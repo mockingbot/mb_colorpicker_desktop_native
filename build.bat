@@ -12,19 +12,19 @@ set VSCMD_SKIP_SENDTELEMETRY=YES
 
 
 echo Build X64 Static MT
-rem call :clean_env
-rem call "%VCINSTALLDIR%\Auxiliary\Build\vcvars64.bat"
+call :clean_env
+call "%VCINSTALLDIR%\Auxiliary\Build\vcvars64.bat"
 set DST_DIR=%PRJ_DIR%\_dst\Windows\x64
 set BUILD_DIR=%PRJ_DIR%\_build\Windows\x64
 call :build
 
 
-rem echo Build X32 Static MT
-rem call :clean_env
-rem call "%VCINSTALLDIR%\Auxiliary\Build\vcvars32.bat"
-rem set DST_DIR=%PRJ_DIR%\_dst\Windows\x32
-rem set BUILD_DIR=%PRJ_DIR%\_build\Windows\x32
-rem call :build
+echo Build X32 Static MT
+call :clean_env
+call "%VCINSTALLDIR%\Auxiliary\Build\vcvars32.bat"
+set DST_DIR=%PRJ_DIR%\_dst\Windows\x32
+set BUILD_DIR=%PRJ_DIR%\_build\Windows\x32
+call :build
 
 endlocal
 
@@ -61,7 +61,8 @@ set link_libs=kernel32.lib user32.lib gdi32.lib ole32.lib
 
 pushd %BUILD_DIR% > nul
 
-    type "%res_dir%\Mask@2.png" > RES_Circle_Mask
+    rem type "%res_dir%\Mask@2.png" > RES_Circle_Mask
+    type "%res_dir%\Mask@1.png" > RES_Circle_Mask
     xxd -i RES_Circle_Mask > RES_Circle_Mask.cxx
     cl %cc_flags% -c RES_Circle_Mask.cxx
 
