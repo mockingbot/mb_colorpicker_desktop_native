@@ -488,8 +488,6 @@ MainWindow::onRefreshTimerTick()
 void
 MainWindow::drawClientContent()
 {
-    SIZE wnd_size = {UI_WINDOW_SIZE, UI_WINDOW_SIZE};
-
     auto mem_dc = ::CreateCompatibleDC(window_dc_);
 
     BITMAPINFO bitmap_info = {};
@@ -505,6 +503,7 @@ MainWindow::drawClientContent()
 
     ::SelectObject(mem_dc, mem_bitmap);
 
+    /*
     {
         Gdiplus::Graphics graph(mem_dc);
 
@@ -512,8 +511,8 @@ MainWindow::drawClientContent()
         graph.FillRectangle(&Gdiplus::SolidBrush(color), \
                             0, 0, UI_WINDOW_SIZE, UI_WINDOW_SIZE);
     }
+    */
 
-    /*
     {
         Gdiplus::Graphics graph(mem_dc);
 
@@ -572,9 +571,9 @@ MainWindow::drawClientContent()
         // draw circle mask
         graph.DrawImage(mask_bitmap_, window_rect);
     }
-    */
 
     POINT src_point = {0, 0};
+    SIZE wnd_size = {UI_WINDOW_SIZE, UI_WINDOW_SIZE};
     BLENDFUNCTION blend_fun = {AC_SRC_OVER, 0, 0xFF, AC_SRC_ALPHA};
 
     ::UpdateLayeredWindow(
