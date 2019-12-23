@@ -35,7 +35,7 @@ ScreenLens::ScreenLens()
     auto runtime_host = Instance::RuntimeHost();
     auto instance_handle = (HINSTANCE)(((void**)runtime_host)[2]);
 
-    window_class_name_ = L"MG_WINCLS#???????"; // ?? TODO:
+    window_class_name_ = (wchar_t*)L"MG_WINCLS#???????"; // ?? TODO:
 
     WNDCLASSEX wcex = {};
 
@@ -47,8 +47,9 @@ ScreenLens::ScreenLens()
     wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
 
     if( 0 == ::RegisterClassEx(&wcex) ) {
-        fprintf(stderr, "RuntimeHostNative Constructor Error 1\n");
-        throw std::runtime_error("RuntimeHostNative Constructor Error 1");
+        const auto error_code = ::GetLastError();
+        fprintf(stderr, "ScreenLens Constructor Error 0 %ld\n", error_code);
+        throw std::runtime_error("ScreenLens Constructor Error 0");
     }
 
     hwnd_magnifier_host_ = ::CreateWindow( \
@@ -63,7 +64,8 @@ ScreenLens::ScreenLens()
                                         nullptr);
     if( hwnd_magnifier_host_ == NULL )
     {
-        fprintf(stderr, "ScreenLens Constructor Error 1 %d\n", ::GetLastError());
+        const auto error_code = ::GetLastError();
+        fprintf(stderr, "ScreenLens Constructor Error 1 %ld\n", error_code);
         throw std::runtime_error("ScreenLens Constructor Error 1");
     }
 
@@ -78,7 +80,8 @@ ScreenLens::ScreenLens()
                                     nullptr);
     if( hwnd_magnifier_ == NULL )
     {
-        fprintf(stderr, "ScreenLens Constructor Error 2 %d\n", ::GetLastError());
+        const auto error_code = ::GetLastError();
+        fprintf(stderr, "ScreenLens Constructor Error 2 %ld\n", error_code);
         throw std::runtime_error("ScreenLens Constructor Error 2");
     }
 
@@ -101,7 +104,8 @@ ScreenLens::ScreenLens()
 
     if( FALSE == set_lens_transform_matrix(hwnd_magnifier_, &matrix) )
     {
-        fprintf(stderr, "ScreenLens Constructor Error 3 %d\n", ::GetLastError());
+        const auto error_code = ::GetLastError();
+        fprintf(stderr, "ScreenLens Constructor Error 3 %ld\n", error_code);
         throw std::runtime_error("ScreenLens Constructor Error 3");
     }
 
@@ -140,7 +144,8 @@ ScreenLens::ScreenLens()
 
     if( TRUE != setZoomCallback(hwnd_magnifier_, callback) )
     {
-        fprintf(stderr, "ScreenLens Constructor Error 4 %d\n", ::GetLastError());
+        const auto error_code = ::GetLastError();
+        fprintf(stderr, "ScreenLens Constructor Error 4 %ld\n", error_code);
         throw std::runtime_error("ScreenLens Constructor Error 4");
     }
 }
@@ -299,7 +304,7 @@ MainWindow::MainWindow()
     auto runtime_host = Instance::RuntimeHost();
     auto instance_handle = (HINSTANCE)(((void**)runtime_host)[2]);
 
-    window_class_name_ = L"WINCLS#???????"; // ?? TODO:
+    window_class_name_ = (wchar_t*)L"WINCLS#???????"; // ?? TODO:
 
     WNDCLASSEX wcex = {};
 
@@ -311,9 +316,11 @@ MainWindow::MainWindow()
     wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
     wcex.style          = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
 
-    if( 0 == ::RegisterClassEx(&wcex) ) {
-        fprintf(stderr, "RuntimeHostNative Constructor Error 1\n");
-        throw std::runtime_error("RuntimeHostNative Constructor Error 1");
+    if( 0 == ::RegisterClassEx(&wcex) )
+    {
+        const auto error_code = ::GetLastError();
+        fprintf(stderr, "MainWindow Constructor Error 0 %ld\n", error_code);
+        throw std::runtime_error("MainWindow Constructor Error 0");
     }
 
     CREATESTRUCT create_struct = {};
@@ -332,7 +339,8 @@ MainWindow::MainWindow()
 
     if( window_handle_ == NULL)
     {
-        fprintf(stderr, "MainWindow Constructor Error 1 %d\n", ::GetLastError());
+        const auto error_code = ::GetLastError();
+        fprintf(stderr, "MainWindow Constructor Error 1 %ld\n", error_code);
         throw std::runtime_error("MainWindow Constructor Error 1");
     }
 
@@ -449,7 +457,7 @@ MainWindow::onRefreshTimerTick()
 
     int cursor_x = 0, cursor_y = 0;
     GetCurrentCursorPosition(&cursor_x, &cursor_y);
-    // fprintf(stderr, "Current Cursor Position: %4d %4d\n", cursor_x, cursor_y);
+    // fprintf(stderr, "Current Cursor : %4d %4d\n", cursor_x, cursor_y);
 
     int central_x = cursor_x;
     int central_y = cursor_y;
@@ -499,7 +507,7 @@ MainWindow::drawClientContent()
     bitmap_info.bmiHeader.biCompression = BI_RGB;
 
     auto mem_bitmap = ::CreateDIBSection( \
-            mem_dc, &bitmap_info, DIB_RGB_COLORS, nullptr, NULL, NULL);
+            mem_dc, &bitmap_info, DIB_RGB_COLORS, NULL, NULL, NULL);
 
     ::SelectObject(mem_dc, mem_bitmap);
 

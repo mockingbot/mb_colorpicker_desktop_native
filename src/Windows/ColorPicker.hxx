@@ -149,7 +149,7 @@ private:
 private:
     LRESULT CALLBACK Callback(UINT uMsg, WPARAM wParam, LPARAM lParam);
 private:
-    wchar_t* window_class_name_ = NULL;
+    wchar_t* window_class_name_ = nullptr;
     HWND window_handle_ = nullptr;
 private:
     HDC window_dc_ = nullptr;
