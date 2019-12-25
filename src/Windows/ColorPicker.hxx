@@ -121,7 +121,37 @@ private:
     void* current_screen_data_ = nullptr;
     DataInfo current_screen_data_info_ = {};
 public:
-    bool RefreshScreenPixelDataWithinBound(
+    bool RefreshScreenPixelDataWithinBound
+    (
+        int central_x, int central_y,
+        int bound_width, int bound_height,
+        struct ScreenPixelData* const off_screen_render_data
+    );
+};
+
+
+class ScreenDataGrabber
+{
+public:
+    ScreenDataGrabber();
+    ~ScreenDataGrabber();
+private:
+    int all_monitor_info_count = 0;
+    RECT all_monitor_rect_info[16] = {};
+    SIZE all_monitor_size_info[16] = {};
+    Gdiplus::Bitmap* all_monitor_captured_bitmap[16] = {};
+private:
+    static BOOL CALLBACK
+    MonitorInfoEnumProc
+    (
+        HMONITOR hMonitor, HDC hdcMonitor,
+        LPRECT lprcMonitor, LPARAM dwData
+    );
+public:
+    bool GrabCurrentScreenDataOfAllAvaliableScreens();
+public:
+    bool RefreshScreenPixelDataWithinBound
+    (
         int central_x, int central_y,
         int bound_width, int bound_height,
         struct ScreenPixelData* const off_screen_render_data

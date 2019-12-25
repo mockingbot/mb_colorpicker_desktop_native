@@ -260,6 +260,135 @@ ScreenLens::RefreshScreenPixelDataWithinBound
 }
 
 
+ScreenDataGrabber::ScreenDataGrabber()
+{
+    fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+    ::EnumDisplayMonitors(NULL, NULL, MonitorInfoEnumProc, (LPARAM)this);
+}
+
+
+ScreenDataGrabber::~ScreenDataGrabber()
+{
+    fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+}
+
+
+BOOL CALLBACK
+ScreenDataGrabber::MonitorInfoEnumProc
+(
+    HMONITOR hMonitor, HDC hdcMonitor,
+    LPRECT lprcMonitor, LPARAM dwData
+)
+{
+    SIZE size = {0, 0};
+    size.cx = lprcMonitor->right - lprcMonitor->left;
+    size.cy = lprcMonitor->bottom - lprcMonitor->top;
+
+    auto self = (class ScreenDataGrabber*)dwData;
+
+    self->all_monitor_rect_info[self->all_monitor_info_count] = *lprcMonitor;
+    self->all_monitor_size_info[self->all_monitor_info_count] = size;
+    self->all_monitor_info_count++;
+
+    return TRUE;
+}
+
+
+bool
+ScreenDataGrabber::GrabCurrentScreenDataOfAllAvaliableScreens()
+{
+    fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
+
+    auto hDesktopWnd = ::GetDesktopWindow();
+    auto hDesktopDC  = ::GetDC(hDesktopWnd);
+    auto hCaptureDC  = ::CreateCompatibleDC(hDesktopDC);
+    auto hBrushBlack = ::CreateSolidBrush(RGB(0, 0, 0));
+
+    for (int idx = 0; idx < all_monitor_info_count; ++idx)
+    {
+        const int display_width = all_monitor_size_info[idx].cx;
+        const int display_height = all_monitor_size_info[idx].cy;
+
+        const int display_top = all_monitor_rect_info[idx].top;
+        const int display_left = all_monitor_rect_info[idx].left;
+
+        auto hCaptureBitmap = ::CreateCompatibleBitmap(hDesktopDC, \
+                                        display_width + CAPTURE_WIDTH*2,
+                                        display_height + CAPTURE_HEIGHT*2);
+
+        ::SelectObject(hCaptureDC, hCaptureBitmap);
+
+        const auto size = all_monitor_size_info[idx];
+        const auto rect = RECT{ 0, 0, size.cx, size.cy};
+
+        ::FillRect(hCaptureDC, &rect, hBrushBlack);
+
+        ::BitBlt(hCaptureDC,
+                 CAPTURE_WIDTH, CAPTURE_HEIGHT,
+                 display_width, display_height,
+                 hDesktopDC,
+                 display_left, display_top,
+                 SRCCOPY|CAPTUREBLT);
+
+        all_monitor_captured_bitmap[idx] = \
+            Gdiplus::Bitmap::FromHBITMAP(hCaptureBitmap, nullptr);
+    }
+
+    ::DeleteObject(hBrushBlack);
+    ::DeleteDC(hCaptureDC);
+    ::DeleteDC(hDesktopDC);
+    ::ReleaseDC(hDesktopWnd, hDesktopDC);
+
+    return true;
+}
+
+
+bool
+ScreenDataGrabber::RefreshScreenPixelDataWithinBound
+(
+    int central_x, int central_y,
+    int bound_width, int bound_height,
+    struct ScreenPixelData* const off_screen_render_data
+)
+{
+    int image_pos_x, image_pos_y;
+
+    POINT central_pos = {central_x, central_y};
+
+    Gdiplus::Bitmap* current_capture_bitmap = nullptr;
+    for(int idx = 0; idx < all_monitor_info_count; ++idx)
+    {
+        if( ::PtInRect(&all_monitor_rect_info[idx], central_pos) )
+        {
+            current_capture_bitmap = all_monitor_captured_bitmap[idx];
+            const auto rect = all_monitor_rect_info[idx];
+
+            image_pos_x = central_x - rect.left;
+            image_pos_y = central_y - rect.top;
+            break;
+        }
+    }
+
+    for(int idx_y = 0; idx_y < bound_height; ++idx_y)
+    {
+        for(int idx_x = 0; idx_x < bound_width; ++idx_x)
+        {
+            int p_x = image_pos_x + idx_x - bound_width/2 + CAPTURE_WIDTH;
+            int p_y = image_pos_y + idx_y - bound_height/2 + CAPTURE_HEIGHT;
+
+            Gdiplus::Color color;
+            current_capture_bitmap->GetPixel(p_x, p_y, &color);
+
+            off_screen_render_data[idx_y*bound_width+idx_x].r =  color.GetR();
+            off_screen_render_data[idx_y*bound_width+idx_x].g =  color.GetG();
+            off_screen_render_data[idx_y*bound_width+idx_x].b =  color.GetB();
+        }
+    }
+
+    return true;
+}
+
+
 LRESULT CALLBACK
 WindowProcess
 (
@@ -475,7 +604,7 @@ MainWindow::onRefreshTimerTick()
             class PerformanceCounter<float> counter(&painting_time);
             drawClientContent();
         }
-        fprintf(stderr, "Paint Time %f ms\n", painting_time/1000);
+        // fprintf(stderr, "Paint Time %f ms\n", painting_time/1000);
     }
 
     record_screen_render_data_fresh_ratio_counter += 1;
@@ -601,6 +730,10 @@ MainWindow::drawClientContent()
 }
 
 
+class ScreenLens* screen_lens = nullptr;
+class ScreenDataGrabber* screen_data_grabber = nullptr;
+
+
 bool
 RefreshScreenPixelDataWithinBound
 (
@@ -610,13 +743,41 @@ RefreshScreenPixelDataWithinBound
     struct ScreenPixelData* const off_screen_render_data
 )
 {
-    static auto screen_lens = new class ScreenLens;
+    if( screen_lens == nullptr ) {
+        screen_lens = new class ScreenLens;
+    }
 
-    screen_lens->SetExcludedWindowList(excluded_window_list);
-    screen_lens->RefreshScreenPixelDataWithinBound( \
+    static bool screen_lens_workable = [&]()
+    {
+        screen_lens->SetExcludedWindowList(excluded_window_list);
+        // return false; // for debug
+        return screen_lens->RefreshScreenPixelDataWithinBound( \
                                      central_x, central_y, \
                                          bound_width, bound_height, \
                                                 off_screen_render_data );
+    }();
+
+    if( screen_lens_workable == false && screen_data_grabber == nullptr ){
+        screen_data_grabber = new ScreenDataGrabber();
+        screen_data_grabber->GrabCurrentScreenDataOfAllAvaliableScreens();
+    }
+
+    if( screen_lens_workable == true )
+    {
+        screen_lens->SetExcludedWindowList(excluded_window_list);
+        screen_lens->RefreshScreenPixelDataWithinBound( \
+                                     central_x, central_y, \
+                                         bound_width, bound_height, \
+                                                off_screen_render_data );
+    }
+    else
+    {
+        screen_data_grabber->RefreshScreenPixelDataWithinBound( \
+                                     central_x, central_y, \
+                                         bound_width, bound_height, \
+                                                off_screen_render_data );
+
+    }
 
     return true;
 }
@@ -642,6 +803,15 @@ PostRun_Mode_Normal()
     fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
     ::ShowCursor(TRUE); // show cursor
+
+    if( screen_data_grabber != nullptr ){
+        delete screen_data_grabber;
+    }
+
+    if( screen_lens != nullptr ){
+        delete screen_lens;
+    }
+
     delete main_window;
 
     int x = GRID_NUMUBER_L;
