@@ -151,7 +151,7 @@ public:
 private:
     class RuntimeHost* runtime_host_ = nullptr;
 public:
-    auto& RuntimeHost() { return runtime_host_; }
+    static auto& RuntimeHost() { return instance_->runtime_host_; }
 private:
     std::function<void(class Instance*)> fun_pre_run_;
     std::function<void(class Instance*)> fun_post_run_;

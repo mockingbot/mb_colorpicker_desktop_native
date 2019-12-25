@@ -36,7 +36,7 @@ GetCurrentCursorPosition
 );
 
 typedef CGWindowID WindowID ;
-typedef std::vector<CGWindowID> WindowIDList;
+typedef std::vector<WindowID> WindowIDList;
 
 //! always using this format: (r, g, b, x) = (float, float, float, float)
 struct ScreenPixelData

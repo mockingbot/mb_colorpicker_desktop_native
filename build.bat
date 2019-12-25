@@ -56,12 +56,13 @@ mkdir %BUILD_DIR% 2> nul
 set res_dir=%PRJ_DIR%\res
 set src_dir=%PRJ_DIR%\src
 
-set cc_flags=/nologo /DOS_WINDOWS /DRELEASE /DUNICODE /MT /EHsc /std:c++17
+set cc_flags=/nologo /DOS_WINDOWS /DRELEASE /DUNICODE /MT /EHsc /std:c++17 /Zi
 set link_libs=kernel32.lib user32.lib gdi32.lib ole32.lib
 
 pushd %BUILD_DIR% > nul
 
-    type "%res_dir%\Mask@2.png" > RES_Circle_Mask
+    rem type "%res_dir%\Mask@2.png" > RES_Circle_Mask
+    type "%res_dir%\Mask@1.png" > RES_Circle_Mask
     xxd -i RES_Circle_Mask > RES_Circle_Mask.cxx
     cl %cc_flags% -c RES_Circle_Mask.cxx
 
