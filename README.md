@@ -14,7 +14,7 @@ An color picker for Win and Mac with pure native platform API
 * stdout 中**包含**最终了所需的数据信息：
 
     所有平台下，在不指定命令行参数（即默认`--mode=0`）时，程序以屏幕取色功能模式运行，
-    stdout 数据为最终的取色结果输出，格式为`#XXXXXX\n`（井号+RGB值+换行符\n）；
+    stdout 数据为最终的取色结果输出，格式为`#XXXXXX\n`（井号+大写RGB值+换行符\n）；
     用户按下esc键后取消取色，此时 stdout 数据为空。
 
     其他命令行参数在不同平台之间各不相同，为此，相关内容请仔细阅读以下辅助说明。
@@ -60,7 +60,19 @@ An color picker for Win and Mac with pure native platform API
     那么完整的输出信息为"`Promote Screen Record Permission Grant Window Succeeded: YES\n`"，
     反之为"`Promote Screen Record Permission Grant Window Succeeded: NO\n`"。
     
-    需要额外说明的是，程序随后仍需再次运行`--mode=1`以确保用户确实对目标程序进行了授权。
+    程序会在触发系统权限弹窗后退出，因此不能在本次返回权限结果，
+    同时由于用户操作时长未知，建议在用户下次触发取色时进行`--mode=1`获得权限检测结果。
+    
+    建议参考以下代码结构：
+    ```js
+    const pickColorAsync = async () => {
+      if (await MODE_1_CHECK_PERMISSION() === false) {
+        await MODE_2_REQUEST_PERMISSION('com.bundle.id')
+        return '' // bail and wait for next permission check
+      }
+      return MODE_0_PICK_COLOR()
+    }
+    ```
 
 ### Windows平台辅助说明
 * <strong>请注意在不同架构下的软件发布：</strong>
@@ -96,5 +108,3 @@ then run:
 ```shell script
 npm run electron-test-start
 ```
-
-

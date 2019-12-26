@@ -132,20 +132,16 @@ InstanceInfo::~InstanceInfo()
 }
 
 
-class RuntimeHostNative : public RuntimeHost
+class RuntimeHostNative final : public RuntimeHost
 {
 public:
     RuntimeHostNative(const Instance* const instance);
-    ~RuntimeHostNative() final;
+    ~RuntimeHostNative();
 private:
-    int Execute() const final;
+    int Execute() const;
+private:
 #if defined(_WIN32)
-private:
-    static LRESULT CALLBACK
-    WndProc
-    (
-        HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
-    );
+    HINSTANCE instance_handle_ = NULL;
 #elif defined(__APPLE__)
     // TODO:
     NSAutoreleasePool* auto_release_pool_;
@@ -158,71 +154,25 @@ private:
 RuntimeHostNative::RuntimeHostNative(const Instance* const instance)
 {
 #if defined(_WIN32)
-    const auto hInstance = GetModuleHandle(NULL);
-
-    wchar_t class_name[] = L"WINCLS#???????";
-    wchar_t window_name[] = L"WINDOW#???????";
-
-    WNDCLASSEX wcex = {};
-
-    wcex.cbSize         = sizeof(WNDCLASSEX);
-    wcex.lpfnWndProc    = WndProc;
-    wcex.hInstance      = hInstance;
-    wcex.lpszClassName  = class_name;
-
-    if( 0 == ::RegisterClassEx(&wcex) ) {
-        fprintf(stderr, "RuntimeHostNative Constructor Error 1\n");
-        throw std::runtime_error("RuntimeHostNative Constructor Error 1");
-    }
-
-    HWND hwnd = ::CreateWindowEx
-    (
-        0x0000,
-        class_name,
-        window_name,
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0,
-        nullptr,
-        nullptr,
-        hInstance,
-        nullptr
-    );
-    if( 0 == hwnd )
-    {
-        fprintf(stderr, "RuntimeHostNative Constructor Error 2\n");
-        throw std::runtime_error("RuntimeHostNative Constructor Error 2");
-    }
+    instance_handle_ = ::GetModuleHandle(NULL);
 #elif defined(__APPLE__)
     auto_release_pool_ = [NSAutoreleasePool new];
 #else
     #error Unknow OS
 #endif
-
 }
 
 
 RuntimeHostNative::~RuntimeHostNative()
 {
-
-}
-
-
 #if defined(_WIN32)
 
-LRESULT CALLBACK
-RuntimeHostNative::WndProc
-(
-    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
-)
-{
-    return ::DefWindowProc(hWnd, uMsg, wParam, lParam);
+#elif defined(__APPLE__)
+    // #TODO
+#else
+    #error Unknow OS
+#endif
 }
-
-#endif // #defined(_WIN32)
-
-#if defined(__APPLE__)
-
-#endif // #defined(__APPLE__)
 
 
 int

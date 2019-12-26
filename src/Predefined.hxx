@@ -46,8 +46,10 @@ const int UI_WINDOW_SIZE = 0 + // <- without window shadow
 #endif // defined(OS_WINDOWS)
 
 const uint32_t CURSOR_REFRESH_FREQUENCY = 60;
+// const uint32_t CURSOR_REFRESH_FREQUENCY = 20;
 const uint32_t SCREEN_CAPTURE_FREQUENCY_TO_CURSOR_REFRESH_RATIO = 1; // 60 hz
 // const uint32_t SCREEN_CAPTURE_FREQUENCY_TO_CURSOR_REFRESH_RATIO = 3; // 20 hz
+// const uint32_t SCREEN_CAPTURE_FREQUENCY_TO_CURSOR_REFRESH_RATIO = 30; // 2 hz
 
 
 
